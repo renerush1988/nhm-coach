@@ -148,13 +148,14 @@ document.querySelectorAll('.nst-option').forEach(opt => {
     opt.classList.add('selected');
   });
 });
-// Pillar selection visual
+// Pillar selection visual - verhindert Doppel-Toggle durch label+checkbox
 document.querySelectorAll('.pillar-option').forEach(opt => {
   const cb = opt.querySelector('input[type=checkbox]');
+  // Checkbox aus dem normalen Click-Flow nehmen
+  cb.style.pointerEvents = 'none';
   opt.addEventListener('click', (e) => {
-    if (e.target !== cb) {
-      cb.checked = !cb.checked;
-    }
+    e.preventDefault();
+    cb.checked = !cb.checked;
     opt.classList.toggle('selected', cb.checked);
   });
 });
