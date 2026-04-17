@@ -12,7 +12,7 @@ from google import genai as _genai
 
 _gemini_key = os.environ.get("GEMINI_API_KEY", "")
 _gemini_client = _genai.Client(api_key=_gemini_key) if _gemini_key else None
-_model = "gemini-2.5-flash"
+_model = "gemini-2.5-flash-lite"
 
 SYSTEM_PROMPT = """Du bist der persönliche KI-Assistent von René Rusch, dem Gründer von NeuroHealth Mastery (NHM).
 
