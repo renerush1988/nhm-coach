@@ -19,6 +19,9 @@
     <a href="/client/new" class="nav-link {% if request.url.path == '/client/new' %}active{% endif %}">
       <span>➕</span> Neuer Kunde
     </a>
+    <a href="/assistant" class="nav-link {% if '/assistant' in request.url.path %}active{% endif %}">
+      <span>🤖</span> KI-Assistent
+    </a>
     <a href="/logout" class="nav-link nav-logout">
       <span>🚪</span> Logout
     </a>

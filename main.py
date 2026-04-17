@@ -11,7 +11,7 @@ import asyncio
 from datetime import datetime
 from typing import Optional
 
-from fastapi import FastAPI, Request, Form, HTTPException, Depends
+from fastapi import FastAPI, Request, Form, HTTPException, Depends, UploadFile, File
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -20,11 +20,15 @@ from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 from database import (
     init_db, create_client, get_client, update_client, list_clients, delete_client,
     create_plan, get_plan, get_latest_plan, list_plans, update_plan_content,
-    mark_plan_sent, get_next_version, save_feedback, get_feedback
+    mark_plan_sent, get_next_version, save_feedback, get_feedback,
+    create_chat, get_chat, list_chats, update_chat_title, touch_chat, delete_chat,
+    add_message, get_messages, save_knowledge_doc, list_knowledge_docs,
+    delete_knowledge_doc, get_all_knowledge_text, get_knowledge_base, save_knowledge_base
 )
 from ai_generator import generate_plan
 from pdf_generator import generate_pdf
 from email_sender import send_plan_email
+from assistant import chat_with_assistant, extract_text_from_upload
 
 # ── App Setup ─────────────────────────────────────────────────────────────────
 
@@ -417,3 +421,203 @@ async def replace_meal(request: Request, plan_id: int):
     )
     new_meal = json.loads(response.choices[0].message.content)
     return JSONResponse({"success": True, "meal": new_meal})
+
+
+# ── KI-Assistent ──────────────────────────────────────────────────────────────
+
+@app.get("/assistant", response_class=HTMLResponse)
+async def assistant_home(request: Request):
+    if not is_authenticated(request):
+        return RedirectResponse("/login", status_code=302)
+    chats = list_chats()
+    docs = list_knowledge_docs()
+    kb = get_knowledge_base()
+    clients = list_clients()
+    return templates.TemplateResponse("assistant.html", {
+        "request": request,
+        "chats": chats,
+        "docs": docs,
+        "knowledge_base": kb["content"] if kb else "",
+        "clients": clients,
+        "active_chat": None,
+        "messages": [],
+    })
+
+
+@app.get("/assistant/new", response_class=HTMLResponse)
+async def assistant_new_chat(request: Request):
+    if not is_authenticated(request):
+        return RedirectResponse("/login", status_code=302)
+    chat_id = create_chat("Neues Gespräch")
+    return RedirectResponse(f"/assistant/{chat_id}", status_code=302)
+
+
+@app.post("/assistant/new-json")
+async def assistant_new_chat_json(request: Request):
+    if not is_authenticated(request):
+        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+    chat_id = create_chat("Neues Gespräch")
+    return JSONResponse({"chat_id": chat_id})
+
+
+@app.get("/assistant/{chat_id}", response_class=HTMLResponse)
+async def assistant_chat(request: Request, chat_id: int):
+    if not is_authenticated(request):
+        return RedirectResponse("/login", status_code=302)
+    chat = get_chat(chat_id)
+    if not chat:
+        return RedirectResponse("/assistant", status_code=302)
+    msgs = get_messages(chat_id)
+    chats = list_chats()
+    docs = list_knowledge_docs()
+    kb = get_knowledge_base()
+    clients = list_clients()
+
+    # Client-Name für aktiven Chat
+    active_chat = dict(chat)
+    if active_chat.get("client_id"):
+        c = get_client(active_chat["client_id"])
+        active_chat["client_name"] = c["name"] if c else ""
+    else:
+        active_chat["client_name"] = ""
+
+    # Client-Namen für Chat-Liste
+    enriched_chats = []
+    for ch in chats:
+        ch_dict = dict(ch)
+        if not ch_dict.get("client_name"):
+            ch_dict["client_name"] = ""
+        enriched_chats.append(ch_dict)
+
+    return templates.TemplateResponse("assistant.html", {
+        "request": request,
+        "chats": enriched_chats,
+        "docs": docs,
+        "knowledge_base": kb["content"] if kb else "",
+        "clients": clients,
+        "active_chat": active_chat,
+        "messages": msgs,
+    })
+
+
+@app.post("/assistant/{chat_id}/message")
+async def assistant_send_message(request: Request, chat_id: int):
+    if not is_authenticated(request):
+        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+    chat = get_chat(chat_id)
+    if not chat:
+        return JSONResponse({"error": "Chat not found"}, status_code=404)
+
+    data = await request.json()
+    user_msg = data.get("message", "").strip()
+    client_id = data.get("client_id")
+
+    if not user_msg:
+        return JSONResponse({"error": "Empty message"}, status_code=400)
+
+    # Gesprächsverlauf laden
+    history = get_messages(chat_id)
+
+    # Wissensbasis + Dokumente
+    knowledge_text = get_all_knowledge_text()
+
+    # Kundendaten falls Kundenbezug
+    client_context = None
+    if client_id:
+        try:
+            client_context = get_client(int(client_id))
+        except Exception:
+            pass
+
+    # Nachricht speichern
+    add_message(chat_id, "user", user_msg)
+
+    # KI-Antwort generieren
+    try:
+        reply = await chat_with_assistant(
+            messages_history=history,
+            user_message=user_msg,
+            knowledge_text=knowledge_text,
+            client_context=client_context
+        )
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+    # Antwort speichern
+    add_message(chat_id, "assistant", reply)
+    touch_chat(chat_id)
+
+    # Chat-Titel automatisch setzen (erste Nachricht)
+    if not history and len(user_msg) > 5:
+        title = user_msg[:50] + ("..." if len(user_msg) > 50 else "")
+        update_chat_title(chat_id, title)
+
+    return JSONResponse({"reply": reply})
+
+
+@app.post("/assistant/{chat_id}/delete")
+async def assistant_delete_chat(request: Request, chat_id: int):
+    if not is_authenticated(request):
+        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+    delete_chat(chat_id)
+    return JSONResponse({"success": True})
+
+
+@app.post("/assistant/{chat_id}/rename")
+async def assistant_rename_chat(request: Request, chat_id: int):
+    if not is_authenticated(request):
+        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+    data = await request.json()
+    title = data.get("title", "Gespräch")
+    update_chat_title(chat_id, title)
+    return JSONResponse({"success": True})
+
+
+@app.post("/assistant/{chat_id}/set-client")
+async def assistant_set_client(request: Request, chat_id: int):
+    if not is_authenticated(request):
+        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+    data = await request.json()
+    client_id = data.get("client_id")
+    conn_module = __import__("database")
+    import sqlite3
+    conn = conn_module.get_conn()
+    from datetime import datetime as dt
+    conn.execute(
+        "UPDATE assistant_chats SET client_id=?, updated_at=? WHERE id=?",
+        (client_id, dt.utcnow().isoformat(), chat_id)
+    )
+    conn.commit()
+    conn.close()
+    return JSONResponse({"success": True})
+
+
+@app.post("/assistant/upload-doc")
+async def assistant_upload_doc(request: Request, file: UploadFile = File(...)):
+    if not is_authenticated(request):
+        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+    try:
+        content_bytes = await file.read()
+        text = await extract_text_from_upload(content_bytes, file.filename)
+        doc_id = save_knowledge_doc(file.filename, text, len(content_bytes))
+        return JSONResponse({"success": True, "doc_id": doc_id, "filename": file.filename})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.post("/assistant/doc/{doc_id}/delete")
+async def assistant_delete_doc(request: Request, doc_id: int):
+    if not is_authenticated(request):
+        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+    delete_knowledge_doc(doc_id)
+    return JSONResponse({"success": True})
+
+
+@app.post("/assistant/knowledge")
+async def assistant_save_knowledge(request: Request):
+    if not is_authenticated(request):
+        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+    data = await request.json()
+    content = data.get("content", "")
+    save_knowledge_base(content)
+    return JSONResponse({"success": True})

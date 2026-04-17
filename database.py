@@ -68,6 +68,46 @@ def init_db():
         )
     """)
 
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS assistant_chats (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            title       TEXT NOT NULL DEFAULT 'Neues Gespräch',
+            client_id   INTEGER DEFAULT NULL,
+            created_at  TEXT NOT NULL,
+            updated_at  TEXT NOT NULL,
+            FOREIGN KEY (client_id) REFERENCES clients(id)
+        )
+    """)
+
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS assistant_messages (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            chat_id     INTEGER NOT NULL,
+            role        TEXT NOT NULL,
+            content     TEXT NOT NULL,
+            created_at  TEXT NOT NULL,
+            FOREIGN KEY (chat_id) REFERENCES assistant_chats(id)
+        )
+    """)
+
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS knowledge_docs (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            filename    TEXT NOT NULL,
+            content     TEXT NOT NULL,
+            file_size   INTEGER DEFAULT 0,
+            created_at  TEXT NOT NULL
+        )
+    """)
+
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS knowledge_base (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            content     TEXT NOT NULL,
+            updated_at  TEXT NOT NULL
+        )
+    """)
+
     conn.commit()
     conn.close()
 
@@ -274,3 +314,160 @@ def get_feedback(plan_id):
             pass
         result.append(d)
     return result
+
+
+# ── Assistant Chat CRUD ───────────────────────────────────────────────────────
+
+def create_chat(title="Neues Gespräch", client_id=None):
+    now = datetime.utcnow().isoformat()
+    conn = get_conn()
+    c = conn.cursor()
+    c.execute("""
+        INSERT INTO assistant_chats (title, client_id, created_at, updated_at)
+        VALUES (?, ?, ?, ?)
+    """, (title, client_id, now, now))
+    chat_id = c.lastrowid
+    conn.commit()
+    conn.close()
+    return chat_id
+
+
+def get_chat(chat_id):
+    conn = get_conn()
+    row = conn.execute("SELECT * FROM assistant_chats WHERE id=?", (chat_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def list_chats():
+    conn = get_conn()
+    rows = conn.execute(
+        "SELECT ac.*, c.name as client_name FROM assistant_chats ac "
+        "LEFT JOIN clients c ON ac.client_id = c.id "
+        "ORDER BY ac.updated_at DESC LIMIT 50"
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def update_chat_title(chat_id, title):
+    now = datetime.utcnow().isoformat()
+    conn = get_conn()
+    conn.execute("UPDATE assistant_chats SET title=?, updated_at=? WHERE id=?", (title, now, chat_id))
+    conn.commit()
+    conn.close()
+
+
+def touch_chat(chat_id):
+    now = datetime.utcnow().isoformat()
+    conn = get_conn()
+    conn.execute("UPDATE assistant_chats SET updated_at=? WHERE id=?", (now, chat_id))
+    conn.commit()
+    conn.close()
+
+
+def delete_chat(chat_id):
+    conn = get_conn()
+    conn.execute("DELETE FROM assistant_messages WHERE chat_id=?", (chat_id,))
+    conn.execute("DELETE FROM assistant_chats WHERE id=?", (chat_id,))
+    conn.commit()
+    conn.close()
+
+
+def add_message(chat_id, role, content):
+    now = datetime.utcnow().isoformat()
+    conn = get_conn()
+    c = conn.cursor()
+    c.execute("""
+        INSERT INTO assistant_messages (chat_id, role, content, created_at)
+        VALUES (?, ?, ?, ?)
+    """, (chat_id, role, content, now))
+    msg_id = c.lastrowid
+    conn.commit()
+    conn.close()
+    return msg_id
+
+
+def get_messages(chat_id):
+    conn = get_conn()
+    rows = conn.execute(
+        "SELECT * FROM assistant_messages WHERE chat_id=? ORDER BY created_at ASC",
+        (chat_id,)
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+# ── Knowledge Docs CRUD ───────────────────────────────────────────────────────
+
+def save_knowledge_doc(filename, content, file_size=0):
+    now = datetime.utcnow().isoformat()
+    conn = get_conn()
+    c = conn.cursor()
+    c.execute("""
+        INSERT INTO knowledge_docs (filename, content, file_size, created_at)
+        VALUES (?, ?, ?, ?)
+    """, (filename, content, file_size, now))
+    doc_id = c.lastrowid
+    conn.commit()
+    conn.close()
+    return doc_id
+
+
+def list_knowledge_docs():
+    conn = get_conn()
+    rows = conn.execute(
+        "SELECT id, filename, file_size, created_at, substr(content,1,200) as preview "
+        "FROM knowledge_docs ORDER BY created_at DESC"
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def delete_knowledge_doc(doc_id):
+    conn = get_conn()
+    conn.execute("DELETE FROM knowledge_docs WHERE id=?", (doc_id,))
+    conn.commit()
+    conn.close()
+
+
+def get_all_knowledge_text():
+    """Returns combined text from knowledge base + all uploaded docs."""
+    conn = get_conn()
+    kb_row = conn.execute(
+        "SELECT content FROM knowledge_base ORDER BY id DESC LIMIT 1"
+    ).fetchone()
+    docs = conn.execute("SELECT filename, content FROM knowledge_docs").fetchall()
+    conn.close()
+
+    parts = []
+    if kb_row:
+        parts.append("=== WISSENSBASIS (Konzept & Regeln) ===\n" + kb_row["content"])
+    for doc in docs:
+        parts.append(f"=== DOKUMENT: {doc['filename']} ===\n{doc['content']}")
+    return "\n\n".join(parts)
+
+
+# ── Knowledge Base CRUD ───────────────────────────────────────────────────────
+
+def get_knowledge_base():
+    conn = get_conn()
+    row = conn.execute(
+        "SELECT * FROM knowledge_base ORDER BY id DESC LIMIT 1"
+    ).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def save_knowledge_base(content):
+    now = datetime.utcnow().isoformat()
+    conn = get_conn()
+    existing = conn.execute("SELECT id FROM knowledge_base LIMIT 1").fetchone()
+    if existing:
+        conn.execute("UPDATE knowledge_base SET content=?, updated_at=? WHERE id=?",
+                     (content, now, existing["id"]))
+    else:
+        conn.execute("INSERT INTO knowledge_base (content, updated_at) VALUES (?, ?)",
+                     (content, now))
+    conn.commit()
+    conn.close()

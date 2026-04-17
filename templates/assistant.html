@@ -1,0 +1,349 @@
+{% extends "base.html" %}
+{% block title %}KI-Assistent — NHM Coach{% endblock %}
+
+{% block content %}
+<div class="assistant-layout">
+
+  <!-- Sidebar -->
+  <aside class="assistant-sidebar">
+    <div class="sidebar-header">
+      <h2 class="sidebar-title">🤖 KI-Assistent</h2>
+      <button class="btn btn-primary btn-sm" onclick="newChat()">+ Neues Gespräch</button>
+    </div>
+
+    <!-- Chat-Liste -->
+    <div class="sidebar-section">
+      <div class="sidebar-label">Gespräche</div>
+      <div id="chat-list">
+        {% for chat in chats %}
+        <div class="chat-item {% if active_chat and chat.id == active_chat.id %}active{% endif %}"
+             onclick="loadChat({{ chat.id }})">
+          <div class="chat-item-title">{{ chat.title }}</div>
+          {% if chat.client_name %}
+          <div class="chat-item-sub">👤 {{ chat.client_name }}</div>
+          {% endif %}
+          <button class="chat-delete-btn" onclick="deleteChat(event, {{ chat.id }})">✕</button>
+        </div>
+        {% endfor %}
+        {% if not chats %}
+        <div class="chat-empty">Noch keine Gespräche</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Dokumente -->
+    <div class="sidebar-section">
+      <div class="sidebar-label">📄 Dokumente</div>
+      <div id="doc-list">
+        {% for doc in docs %}
+        <div class="doc-item">
+          <span class="doc-name">{{ doc.filename }}</span>
+          <span class="doc-size">{{ (doc.file_size / 1024) | round(1) }} KB</span>
+          <button class="doc-delete-btn" onclick="deleteDoc({{ doc.id }})">✕</button>
+        </div>
+        {% endfor %}
+        {% if not docs %}
+        <div class="chat-empty">Keine Dokumente</div>
+        {% endif %}
+      </div>
+      <label class="btn btn-secondary btn-sm upload-btn" style="margin-top:8px; cursor:pointer;">
+        📎 Dokument hochladen
+        <input type="file" id="doc-upload" accept=".pdf,.txt,.md,.docx" style="display:none" onchange="uploadDoc(this)">
+      </label>
+      <div id="upload-status" style="font-size:12px; color:#aaa; margin-top:4px;"></div>
+    </div>
+
+    <!-- Wissensbasis -->
+    <div class="sidebar-section">
+      <div class="sidebar-label">🧠 Wissensbasis</div>
+      <textarea id="knowledge-base" class="knowledge-textarea" placeholder="Gib hier dein Konzept, deine Regeln und dein Wissen ein. Der Assistent nutzt das als Grundlage für alle Antworten...">{{ knowledge_base }}</textarea>
+      <button class="btn btn-secondary btn-sm" onclick="saveKnowledge()" style="margin-top:6px;">💾 Speichern</button>
+    </div>
+  </aside>
+
+  <!-- Chat-Bereich -->
+  <div class="assistant-main">
+
+    <!-- Chat-Header -->
+    <div class="chat-header">
+      {% if active_chat %}
+      <div class="chat-header-info">
+        <span id="chat-title-display" class="chat-title-editable" onclick="editTitle()">{{ active_chat.title }}</span>
+        {% if active_chat.client_id %}
+        <span class="chat-client-badge">👤 {{ active_chat.client_name }}</span>
+        {% endif %}
+      </div>
+      {% else %}
+      <div class="chat-header-info">
+        <span class="chat-title-editable">Wähle ein Gespräch oder starte ein neues</span>
+      </div>
+      {% endif %}
+
+      <!-- Kundenbezug -->
+      <div class="chat-context-selector">
+        <label style="font-size:12px; color:#aaa;">Kundenbezug:</label>
+        <select id="client-select" class="select-sm" onchange="updateClientContext()">
+          <option value="">Kein Kundenbezug</option>
+          {% for c in clients %}
+          <option value="{{ c.id }}" {% if active_chat and active_chat.client_id == c.id %}selected{% endif %}>
+            {{ c.name }} ({{ c.nst_type }})
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <!-- Nachrichten -->
+    <div id="messages" class="messages-container">
+      {% if not active_chat %}
+      <div class="welcome-screen">
+        <div class="welcome-icon">🧠</div>
+        <h3>Dein NHM-Coaching-Assistent</h3>
+        <p>Stelle Fragen zu Neurotyping, Training, Ernährung, Stress und Schlaf.<br>
+        Lade Dokumente hoch und pflege deine Wissensbasis — der Assistent lernt aus allem.</p>
+        <div class="welcome-examples">
+          <button class="example-btn" onclick="useExample('Was sind die Hauptunterschiede zwischen Löwe und Falke im Training?')">Was sind die Hauptunterschiede zwischen Löwe und Falke im Training?</button>
+          <button class="example-btn" onclick="useExample('Welche Ernährungsstrategie empfiehlst du für Fettreduktion bei einem Wolf-Typ?')">Welche Ernährungsstrategie für Fettreduktion beim Wolf-Typ?</button>
+          <button class="example-btn" onclick="useExample('Mein Kunde schläft schlecht und ist gestresst. Was kann ich empfehlen?')">Mein Kunde schläft schlecht und ist gestresst. Was empfehlen?</button>
+        </div>
+      </div>
+      {% else %}
+        {% for msg in messages %}
+        <div class="message message-{{ msg.role }}">
+          <div class="message-bubble">{{ msg.content | replace('\n', '<br>') | safe }}</div>
+          <div class="message-time">{{ msg.created_at[:16].replace('T', ' ') }}</div>
+        </div>
+        {% endfor %}
+        {% if not messages %}
+        <div class="chat-start-hint">Schreibe deine erste Nachricht...</div>
+        {% endif %}
+      {% endif %}
+    </div>
+
+    <!-- Input-Bereich -->
+    <div class="chat-input-area">
+      <div class="chat-input-wrapper">
+        <textarea id="user-input" class="chat-input" placeholder="Stelle eine Frage zu deinem Konzept, einem Kunden oder einer Coaching-Situation..." rows="1"
+                  onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+        <button id="send-btn" class="btn-send" onclick="sendMessage()" {% if not active_chat %}disabled{% endif %}>
+          <span id="send-icon">➤</span>
+        </button>
+      </div>
+      <div class="chat-input-hint">Enter = Senden &nbsp;|&nbsp; Shift+Enter = Neue Zeile</div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const CHAT_ID = {{ active_chat.id if active_chat else 'null' }};
+
+function newChat() {
+  window.location.href = '/assistant/new';
+}
+
+function loadChat(chatId) {
+  window.location.href = '/assistant/' + chatId;
+}
+
+async function deleteChat(e, chatId) {
+  e.stopPropagation();
+  if (!confirm('Gespräch löschen?')) return;
+  const r = await fetch('/assistant/' + chatId + '/delete', {method: 'POST'});
+  if (r.ok) {
+    if (CHAT_ID === chatId) window.location.href = '/assistant';
+    else window.location.reload();
+  }
+}
+
+async function sendMessage() {
+  if (!CHAT_ID) {
+    showToast('Bitte starte zuerst ein neues Gespräch.', 'error');
+    return;
+  }
+  const input = document.getElementById('user-input');
+  const msg = input.value.trim();
+  if (!msg) return;
+
+  // UI: Nachricht sofort anzeigen
+  appendMessage('user', msg);
+  input.value = '';
+  autoResize(input);
+
+  // Typing indicator
+  const typingId = appendTyping();
+  document.getElementById('send-btn').disabled = true;
+
+  const clientId = document.getElementById('client-select').value;
+
+  try {
+    const r = await fetch('/assistant/' + CHAT_ID + '/message', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({message: msg, client_id: clientId || null})
+    });
+    const data = await r.json();
+    removeTyping(typingId);
+    if (data.reply) {
+      appendMessage('assistant', data.reply);
+    } else {
+      showToast('Fehler: ' + (data.error || 'Unbekannter Fehler'), 'error');
+    }
+  } catch(e) {
+    removeTyping(typingId);
+    showToast('Verbindungsfehler: ' + e.message, 'error');
+  }
+  document.getElementById('send-btn').disabled = false;
+  scrollToBottom();
+}
+
+function appendMessage(role, content) {
+  const container = document.getElementById('messages');
+  // Entferne Welcome-Screen falls vorhanden
+  const welcome = container.querySelector('.welcome-screen, .chat-start-hint');
+  if (welcome) welcome.remove();
+
+  const div = document.createElement('div');
+  div.className = 'message message-' + role;
+  const formatted = content.replace(/\n/g, '<br>');
+  div.innerHTML = `<div class="message-bubble">${formatted}</div><div class="message-time">Jetzt</div>`;
+  container.appendChild(div);
+  scrollToBottom();
+}
+
+function appendTyping() {
+  const container = document.getElementById('messages');
+  const id = 'typing-' + Date.now();
+  const div = document.createElement('div');
+  div.id = id;
+  div.className = 'message message-assistant';
+  div.innerHTML = '<div class="message-bubble typing-indicator"><span></span><span></span><span></span></div>';
+  container.appendChild(div);
+  scrollToBottom();
+  return id;
+}
+
+function removeTyping(id) {
+  const el = document.getElementById(id);
+  if (el) el.remove();
+}
+
+function scrollToBottom() {
+  const c = document.getElementById('messages');
+  c.scrollTop = c.scrollHeight;
+}
+
+function handleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+}
+
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 200) + 'px';
+}
+
+function useExample(text) {
+  if (!CHAT_ID) {
+    // Neues Gespräch starten und dann Beispiel verwenden
+    fetch('/assistant/new-json', {method: 'POST'})
+      .then(r => r.json())
+      .then(data => {
+        window.location.href = '/assistant/' + data.chat_id + '?q=' + encodeURIComponent(text);
+      });
+    return;
+  }
+  document.getElementById('user-input').value = text;
+  sendMessage();
+}
+
+async function updateClientContext() {
+  if (!CHAT_ID) return;
+  const clientId = document.getElementById('client-select').value;
+  await fetch('/assistant/' + CHAT_ID + '/set-client', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({client_id: clientId || null})
+  });
+}
+
+async function uploadDoc(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const status = document.getElementById('upload-status');
+  status.textContent = 'Lade hoch...';
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const r = await fetch('/assistant/upload-doc', {method: 'POST', body: formData});
+    const data = await r.json();
+    if (data.success) {
+      status.textContent = '✅ ' + file.name + ' hochgeladen';
+      setTimeout(() => window.location.reload(), 1000);
+    } else {
+      status.textContent = '❌ Fehler: ' + data.error;
+    }
+  } catch(e) {
+    status.textContent = '❌ ' + e.message;
+  }
+  input.value = '';
+}
+
+async function deleteDoc(docId) {
+  if (!confirm('Dokument löschen?')) return;
+  const r = await fetch('/assistant/doc/' + docId + '/delete', {method: 'POST'});
+  if (r.ok) window.location.reload();
+}
+
+async function saveKnowledge() {
+  const content = document.getElementById('knowledge-base').value;
+  const r = await fetch('/assistant/knowledge', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({content})
+  });
+  const data = await r.json();
+  if (data.success) showToast('Wissensbasis gespeichert ✅', 'success');
+  else showToast('Fehler beim Speichern', 'error');
+}
+
+function editTitle() {
+  const el = document.getElementById('chat-title-display');
+  const current = el.textContent;
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.value = current;
+  input.className = 'title-edit-input';
+  el.replaceWith(input);
+  input.focus();
+  input.addEventListener('blur', async () => {
+    const newTitle = input.value.trim() || current;
+    await fetch('/assistant/' + CHAT_ID + '/rename', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({title: newTitle})
+    });
+    window.location.reload();
+  });
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') input.blur(); });
+}
+
+// Auto-scroll beim Laden
+window.addEventListener('load', () => {
+  scrollToBottom();
+  // URL-Parameter für Beispielfragen
+  const params = new URLSearchParams(window.location.search);
+  const q = params.get('q');
+  if (q) {
+    document.getElementById('user-input').value = q;
+    sendMessage();
+  }
+});
+</script>
+{% endblock %}
