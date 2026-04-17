@@ -9,7 +9,10 @@ import os
 import json
 from openai import OpenAI
 
-client = OpenAI()
+# Explicit init to avoid proxy-related issues on some hosting environments
+_api_key = os.environ.get("OPENAI_API_KEY", "")
+_base_url = os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1")
+client = OpenAI(api_key=_api_key, base_url=_base_url)
 
 # ── NST Type Profiles ─────────────────────────────────────────────────────────
 
