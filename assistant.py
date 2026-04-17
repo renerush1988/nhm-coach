@@ -8,20 +8,11 @@ Kann Kundendaten und hochgeladene Dokumente als Kontext nutzen.
 
 import os
 import json
-from openai import OpenAI
+from google import genai as _genai
 
 _gemini_key = os.environ.get("GEMINI_API_KEY", "")
-_openai_key = os.environ.get("OPENAI_API_KEY", "")
-
-if _gemini_key:
-    client = OpenAI(
-        api_key=_gemini_key,
-        base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
-    )
-    _model = "gemini-2.0-flash"
-else:
-    client = OpenAI(api_key=_openai_key)
-    _model = "gpt-4.1-mini"
+_gemini_client = _genai.Client(api_key=_gemini_key) if _gemini_key else None
+_model = "gemini-2.5-flash"
 
 SYSTEM_PROMPT = """Du bist der persönliche KI-Assistent von René Rusch, dem Gründer von NeuroHealth Mastery (NHM).
 
@@ -107,14 +98,23 @@ Interne Notizen: {client_context.get('notes', 'keine')}
     # Neue Nachricht
     messages.append({"role": "user", "content": user_message})
     
-    response = client.chat.completions.create(
+    # Baue Konversation als einzelnen Prompt für Gemini
+    full_prompt = system_content + "\n\n"
+    for msg in messages_history[-20:]:
+        role_label = "René" if msg["role"] == "user" else "Assistent"
+        full_prompt += f"{role_label}: {msg['content']}\n"
+    full_prompt += f"René: {user_message}\n\nAssistent:"
+
+    response = _gemini_client.models.generate_content(
         model=_model,
-        messages=messages,
-        max_tokens=1500,
-        temperature=0.7,
+        contents=full_prompt,
+        config=_genai.types.GenerateContentConfig(
+            temperature=0.7,
+            max_output_tokens=1500,
+        )
     )
-    
-    return response.choices[0].message.content
+
+    return response.text
 
 
 async def extract_text_from_upload(file_content: bytes, filename: str) -> str:

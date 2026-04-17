@@ -7,22 +7,11 @@ All plans are tailored to the client's NST type, goal, and selected pillars.
 
 import os
 import json
-from openai import OpenAI
+from google import genai as _genai
 
-# Nutze Gemini API Key wenn vorhanden, sonst OpenAI
 _gemini_key = os.environ.get("GEMINI_API_KEY", "")
-_openai_key = os.environ.get("OPENAI_API_KEY", "")
-
-if _gemini_key:
-    # Gemini via OpenAI-kompatibler Endpunkt
-    client = OpenAI(
-        api_key=_gemini_key,
-        base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
-    )
-    _model = "gemini-2.0-flash"
-else:
-    client = OpenAI(api_key=_openai_key)
-    _model = "gpt-4.1"
+_gemini_client = _genai.Client(api_key=_gemini_key) if _gemini_key else None
+_model = "gemini-2.5-flash"
 
 # ── NST Type Profiles ─────────────────────────────────────────────────────────
 
@@ -387,18 +376,18 @@ async def generate_plan(client_data: dict, feedback: dict = None) -> dict:
     system_prompt = build_system_prompt(lang)
     user_prompt = build_user_prompt(client_data, feedback)
 
-    response = client.chat.completions.create(
+    full_prompt = system_prompt + "\n\n" + user_prompt
+    response = _gemini_client.models.generate_content(
         model=_model,
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
-        temperature=0.7,
-        max_tokens=6000,
-        response_format={"type": "json_object"},
+        contents=full_prompt,
+        config=_genai.types.GenerateContentConfig(
+            temperature=0.7,
+            max_output_tokens=8000,
+            response_mime_type="application/json",
+        )
     )
 
-    raw = response.choices[0].message.content
+    raw = response.text
     try:
         return json.loads(raw)
     except json.JSONDecodeError:
