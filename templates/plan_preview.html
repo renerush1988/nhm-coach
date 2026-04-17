@@ -1,0 +1,462 @@
+{% extends "base.html" %}
+{% block title %}Plan v{{ plan.version }} – {{ client.name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Plan v{{ plan.version }} – {{ client.name }}</h1>
+    <p class="page-sub">
+      {{ {'lion':'🦁 Löwe','falcon':'🦅 Falke','chameleon':'🦎 Chamäleon','wolf':'🐺 Wolf','owl':'🦉 Eule'}[client.nst_type] }}
+      &nbsp;|&nbsp;
+      {{ {'fat_loss':'Fettreduktion','muscle':'Muskelaufbau','energy':'Mehr Energie','health':'Allg. Gesundheit'}[client.goal] }}
+      &nbsp;|&nbsp; {{ client.duration }} Wochen
+    </p>
+  </div>
+  <div class="header-actions">
+    <a href="/client/{{ client.id }}" class="btn-secondary">← Zurück</a>
+  </div>
+</div>
+
+<!-- Action Bar -->
+<div class="plan-action-bar">
+  <div class="plan-status">
+    <span class="status-badge status-{{ plan.status }}">
+      {{ 'Entwurf' if plan.status == 'draft' else '✅ Gesendet am ' + plan.sent_at[:10] }}
+    </span>
+  </div>
+  <div class="plan-actions">
+    <button id="btn-save" class="btn-secondary" onclick="savePlan()">💾 Speichern</button>
+    <a href="/plan/{{ plan.id }}/pdf" class="btn-secondary">⬇️ PDF</a>
+    <button id="btn-send" class="btn-primary" onclick="sendPlan()">
+      📧 An {{ client.email }} senden
+    </button>
+  </div>
+</div>
+
+<!-- Plan Content (Editable) -->
+<div class="plan-editor" id="plan-editor">
+
+  <!-- Summary -->
+  {% if content.summary %}
+  <div class="plan-section plan-summary">
+    <div class="section-icon">✨</div>
+    <div class="section-body">
+      <h2>Persönliche Einleitung</h2>
+      <p class="editable" data-field="summary" contenteditable="true">{{ content.summary }}</p>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Training -->
+  {% if content.training %}
+  <div class="plan-section pillar-section training-section">
+    <div class="pillar-header training-header">
+      <span class="pillar-header-icon">💪</span>
+      <h2>Training</h2>
+    </div>
+    <div class="section-body">
+      <p class="editable overview-text" data-field="training.overview" contenteditable="true">{{ content.training.overview }}</p>
+
+      {% if content.training.weeks %}
+      <div class="weeks-container">
+        {% for week in content.training.weeks %}
+        <div class="week-block">
+          <h3 class="week-title editable" data-field="training.weeks.{{ loop.index0 }}.label" contenteditable="true">{{ week.label }}</h3>
+          {% for session in week.sessions %}
+          <div class="session-block">
+            <div class="session-header">
+              <span class="session-day editable" data-field="training.weeks.{{ loop.index0 }}.sessions.{{ loop.index0 }}.day" contenteditable="true">{{ session.day }}</span>
+              <span class="session-type editable" contenteditable="true">{{ session.type }}</span>
+              {% if session.duration_min %}<span class="session-duration">{{ session.duration_min }} min</span>{% endif %}
+            </div>
+            {% if session.exercises %}
+            <table class="exercise-table">
+              <thead>
+                <tr><th>Übung</th><th>Sätze</th><th>Wdh.</th><th>Hinweis</th></tr>
+              </thead>
+              <tbody>
+                {% for ex in session.exercises %}
+                <tr>
+                  <td class="editable" contenteditable="true">{{ ex.name }}</td>
+                  <td class="editable" contenteditable="true">{{ ex.sets }}</td>
+                  <td class="editable" contenteditable="true">{{ ex.reps }}</td>
+                  <td class="editable" contenteditable="true">{{ ex.note or '' }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      {% if content.training.tips %}
+      <div class="tips-box training-tips">
+        <h4>💡 Tipps</h4>
+        <ul>{% for tip in content.training.tips %}<li class="editable" contenteditable="true">{{ tip }}</li>{% endfor %}</ul>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Nutrition -->
+  {% if content.nutrition %}
+  <div class="plan-section pillar-section nutrition-section">
+    <div class="pillar-header nutrition-header">
+      <span class="pillar-header-icon">🥗</span>
+      <h2>Ernährungsplan</h2>
+    </div>
+    <div class="section-body">
+      <p class="editable overview-text" contenteditable="true">{{ content.nutrition.overview }}</p>
+
+      {% if content.nutrition.daily_calories or content.nutrition.macros %}
+      <div class="macros-bar">
+        {% if content.nutrition.daily_calories %}
+        <div class="macro-item">
+          <span class="macro-label">Kalorien</span>
+          <span class="macro-value editable" contenteditable="true">{{ content.nutrition.daily_calories }}</span>
+          <span class="macro-unit">kcal</span>
+        </div>
+        {% endif %}
+        {% if content.nutrition.macros %}
+        <div class="macro-item">
+          <span class="macro-label">Protein</span>
+          <span class="macro-value editable" contenteditable="true">{{ content.nutrition.macros.protein_g }}</span>
+          <span class="macro-unit">g</span>
+        </div>
+        <div class="macro-item">
+          <span class="macro-label">Kohlenhydrate</span>
+          <span class="macro-value editable" contenteditable="true">{{ content.nutrition.macros.carbs_g }}</span>
+          <span class="macro-unit">g</span>
+        </div>
+        <div class="macro-item">
+          <span class="macro-label">Fett</span>
+          <span class="macro-value editable" contenteditable="true">{{ content.nutrition.macros.fat_g }}</span>
+          <span class="macro-unit">g</span>
+        </div>
+        {% endif %}
+      </div>
+      {% endif %}
+
+      {% for day_type in content.nutrition.meal_plan %}
+      <div class="meal-day-block">
+        <h3 class="meal-day-title">{{ day_type.day_type }}</h3>
+        {% for meal in day_type.meals %}
+        <div class="meal-row">
+          <div class="meal-time editable" contenteditable="true">{{ meal.time }}</div>
+          <div class="meal-info">
+            <div class="meal-name editable" contenteditable="true">{{ meal.name }}</div>
+            <div class="meal-desc editable" contenteditable="true">{{ meal.description }}</div>
+          </div>
+          <div class="meal-macros">
+            {% if meal.calories %}<span class="editable" contenteditable="true">{{ meal.calories }}</span> kcal{% endif %}
+            {% if meal.protein_g %} | <span class="editable" contenteditable="true">{{ meal.protein_g }}</span>g P{% endif %}
+          </div>
+          <button class="btn-replace-meal btn-xs" 
+                  data-day-type="{{ day_type.day_type }}"
+                  data-meal-name="{{ meal.name }}"
+                  onclick="replaceMeal(this)">🔄</button>
+        </div>
+        {% endfor %}
+      </div>
+      {% endfor %}
+
+      {% if content.nutrition.supplements %}
+      <div class="tips-box">
+        <h4>💊 Supplements</h4>
+        <ul>{% for s in content.nutrition.supplements %}<li class="editable" contenteditable="true">{{ s }}</li>{% endfor %}</ul>
+      </div>
+      {% endif %}
+
+      {% if content.nutrition.tips %}
+      <div class="tips-box nutrition-tips">
+        <h4>💡 Ernährungs-Tipps</h4>
+        <ul>{% for tip in content.nutrition.tips %}<li class="editable" contenteditable="true">{{ tip }}</li>{% endfor %}</ul>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Stress -->
+  {% if content.stress %}
+  <div class="plan-section pillar-section stress-section">
+    <div class="pillar-header stress-header">
+      <span class="pillar-header-icon">🧘</span>
+      <h2>Stressmanagement</h2>
+    </div>
+    <div class="section-body">
+      <p class="editable overview-text" contenteditable="true">{{ content.stress.overview }}</p>
+
+      {% if content.stress.daily_routine %}
+      <h3>Tägliche Routine</h3>
+      {% for item in content.stress.daily_routine %}
+      <div class="routine-item">
+        <span class="routine-time editable" contenteditable="true">{{ item.time }}</span>
+        <div class="routine-content">
+          <strong class="editable" contenteditable="true">{{ item.action }}</strong>
+          {% if item.duration_min %}<span class="routine-dur">({{ item.duration_min }} min)</span>{% endif %}
+          <p class="editable" contenteditable="true">{{ item.description }}</p>
+        </div>
+      </div>
+      {% endfor %}
+      {% endif %}
+
+      {% if content.stress.techniques %}
+      <h3>Techniken</h3>
+      {% for tech in content.stress.techniques %}
+      <div class="technique-item">
+        <h4 class="editable" contenteditable="true">{{ tech.name }}</h4>
+        <p class="editable" contenteditable="true">{{ tech.description }}</p>
+        {% if tech.when %}<p class="technique-when editable" contenteditable="true"><em>Wann: {{ tech.when }}</em></p>{% endif %}
+      </div>
+      {% endfor %}
+      {% endif %}
+
+      {% if content.stress.tips %}
+      <div class="tips-box stress-tips">
+        <h4>💡 Stress-Tipps</h4>
+        <ul>{% for tip in content.stress.tips %}<li class="editable" contenteditable="true">{{ tip }}</li>{% endfor %}</ul>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Sleep -->
+  {% if content.sleep %}
+  <div class="plan-section pillar-section sleep-section">
+    <div class="pillar-header sleep-header">
+      <span class="pillar-header-icon">😴</span>
+      <h2>Schlafoptimierung</h2>
+    </div>
+    <div class="section-body">
+      <p class="editable overview-text" contenteditable="true">{{ content.sleep.overview }}</p>
+
+      {% if content.sleep.target_hours or content.sleep.bedtime %}
+      <div class="sleep-times">
+        {% if content.sleep.target_hours %}
+        <div class="sleep-time-item">
+          <span class="sleep-time-label">Ziel-Schlafdauer</span>
+          <span class="sleep-time-value editable" contenteditable="true">{{ content.sleep.target_hours }}h</span>
+        </div>
+        {% endif %}
+        {% if content.sleep.bedtime %}
+        <div class="sleep-time-item">
+          <span class="sleep-time-label">Schlafenszeit</span>
+          <span class="sleep-time-value editable" contenteditable="true">{{ content.sleep.bedtime }}</span>
+        </div>
+        {% endif %}
+        {% if content.sleep.wake_time %}
+        <div class="sleep-time-item">
+          <span class="sleep-time-label">Aufstehzeit</span>
+          <span class="sleep-time-value editable" contenteditable="true">{{ content.sleep.wake_time }}</span>
+        </div>
+        {% endif %}
+      </div>
+      {% endif %}
+
+      {% if content.sleep.evening_routine %}
+      <h3>Abendroutine</h3>
+      {% for item in content.sleep.evening_routine %}
+      <div class="routine-item">
+        <span class="routine-time editable" contenteditable="true">{{ item.time }}</span>
+        <div class="routine-content">
+          <strong class="editable" contenteditable="true">{{ item.action }}</strong>
+          <p class="editable" contenteditable="true">{{ item.description }}</p>
+        </div>
+      </div>
+      {% endfor %}
+      {% endif %}
+
+      {% if content.sleep.environment %}
+      <div class="tips-box">
+        <h4>🛏️ Schlafumgebung</h4>
+        <ul>{% for e in content.sleep.environment %}<li class="editable" contenteditable="true">{{ e }}</li>{% endfor %}</ul>
+      </div>
+      {% endif %}
+
+      {% if content.sleep.supplements %}
+      <div class="tips-box">
+        <h4>💊 Schlaf-Supplements</h4>
+        <ul>{% for s in content.sleep.supplements %}<li class="editable" contenteditable="true">{{ s }}</li>{% endfor %}</ul>
+      </div>
+      {% endif %}
+
+      {% if content.sleep.tips %}
+      <div class="tips-box sleep-tips">
+        <h4>💡 Schlaf-Tipps</h4>
+        <ul>{% for tip in content.sleep.tips %}<li class="editable" contenteditable="true">{{ tip }}</li>{% endfor %}</ul>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+
+<!-- Meal Replace Modal -->
+<div id="meal-replace-modal" class="modal hidden">
+  <div class="modal-box">
+    <h3>🔄 Mahlzeit ersetzen</h3>
+    <p id="meal-replace-name"></p>
+    <div class="form-group">
+      <label>Warum soll diese Mahlzeit ersetzt werden?</label>
+      <textarea id="meal-replace-reason" rows="3" placeholder="z. B. Hat nicht geschmeckt, Zutat nicht verfügbar…"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-primary" onclick="confirmReplaceMeal()">Ersetzen</button>
+      <button class="btn-secondary" onclick="closeModal()">Abbrechen</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const PLAN_ID = {{ plan.id }};
+let currentMealBtn = null;
+
+// ── Save Plan ─────────────────────────────────────────────────────────────────
+async function savePlan() {
+  const content = extractContent();
+  try {
+    const res = await fetch(`/plan/${PLAN_ID}/save`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({content})
+    });
+    const data = await res.json();
+    if (data.success) showToast('✅ Plan gespeichert', 'success');
+    else showToast('Fehler beim Speichern', 'error');
+  } catch(e) {
+    showToast('Verbindungsfehler', 'error');
+  }
+}
+
+// ── Send Plan ─────────────────────────────────────────────────────────────────
+async function sendPlan() {
+  if (!confirm('Plan jetzt per E-Mail senden?')) return;
+  await savePlan();
+  showLoading('Plan wird gesendet…');
+  try {
+    const res = await fetch(`/plan/${PLAN_ID}/send`, { method: 'POST' });
+    const data = await res.json();
+    hideLoading();
+    if (data.success) {
+      showToast('✅ ' + data.message, 'success');
+      document.querySelector('.status-badge').textContent = '✅ Gesendet';
+      document.querySelector('.status-badge').className = 'status-badge status-sent';
+    } else if (data.smtp_not_configured) {
+      showToast('⚠️ SMTP nicht konfiguriert. Bitte SMTP_USER und SMTP_PASS setzen.', 'error');
+    } else {
+      showToast('Fehler: ' + data.error, 'error');
+    }
+  } catch(e) {
+    hideLoading();
+    showToast('Verbindungsfehler', 'error');
+  }
+}
+
+// ── Meal Replace ──────────────────────────────────────────────────────────────
+function replaceMeal(btn) {
+  currentMealBtn = btn;
+  const mealName = btn.dataset.mealName;
+  const dayType = btn.dataset.dayType;
+  document.getElementById('meal-replace-name').textContent = `${mealName} (${dayType})`;
+  document.getElementById('meal-replace-reason').value = '';
+  document.getElementById('meal-replace-modal').classList.remove('hidden');
+}
+
+async function confirmReplaceMeal() {
+  const reason = document.getElementById('meal-replace-reason').value;
+  const mealName = currentMealBtn.dataset.mealName;
+  const dayType = currentMealBtn.dataset.dayType;
+  closeModal();
+  showLoading('KI erstellt Ersatzmahlzeit…');
+  try {
+    const res = await fetch(`/plan/${PLAN_ID}/replace-meal`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({day_type: dayType, meal_name: mealName, reason})
+    });
+    const data = await res.json();
+    hideLoading();
+    if (data.success) {
+      const meal = data.meal;
+      const row = currentMealBtn.closest('.meal-row');
+      row.querySelector('.meal-name').textContent = meal.name;
+      row.querySelector('.meal-desc').textContent = meal.description;
+      row.querySelector('.meal-time').textContent = meal.time || '';
+      showToast('✅ Mahlzeit ersetzt', 'success');
+    } else {
+      showToast('Fehler: ' + data.error, 'error');
+    }
+  } catch(e) {
+    hideLoading();
+    showToast('Verbindungsfehler', 'error');
+  }
+}
+
+function closeModal() {
+  document.getElementById('meal-replace-modal').classList.add('hidden');
+}
+
+// ── Extract editable content back to JSON ─────────────────────────────────────
+function extractContent() {
+  // Re-read the original JSON and overlay with edited contenteditable values
+  // For simplicity: collect all editable text and rebuild the structure
+  // The plan content is stored server-side; we send the full updated content
+  const original = {{ content_json | safe }};
+  
+  // Summary
+  const summaryEl = document.querySelector('[data-field="summary"]');
+  if (summaryEl) original.summary = summaryEl.textContent.trim();
+
+  // Training overview
+  const tOverview = document.querySelector('[data-field="training.overview"]');
+  if (tOverview && original.training) original.training.overview = tOverview.textContent.trim();
+
+  // Nutrition overview
+  const nOverview = document.querySelector('[data-field="nutrition.overview"]');
+  if (nOverview && original.nutrition) original.nutrition.overview = nOverview.textContent.trim();
+
+  // Exercise tables
+  if (original.training && original.training.weeks) {
+    document.querySelectorAll('.exercise-table tbody').forEach((tbody, wi) => {
+      const week = original.training.weeks[wi];
+      if (!week) return;
+      tbody.querySelectorAll('tr').forEach((tr, ei) => {
+        const session = week.sessions[0]; // simplified
+        if (!session || !session.exercises[ei]) return;
+        const cells = tr.querySelectorAll('td');
+        if (cells[0]) session.exercises[ei].name = cells[0].textContent.trim();
+        if (cells[1]) session.exercises[ei].sets = cells[1].textContent.trim();
+        if (cells[2]) session.exercises[ei].reps = cells[2].textContent.trim();
+        if (cells[3]) session.exercises[ei].note = cells[3].textContent.trim();
+      });
+    });
+  }
+
+  // Meal descriptions
+  if (original.nutrition && original.nutrition.meal_plan) {
+    document.querySelectorAll('.meal-row').forEach((row, i) => {
+      const dayIdx = Math.floor(i / (original.nutrition.meal_plan[0]?.meals?.length || 4));
+      const mealIdx = i % (original.nutrition.meal_plan[0]?.meals?.length || 4);
+      const dayData = original.nutrition.meal_plan[dayIdx];
+      if (!dayData || !dayData.meals[mealIdx]) return;
+      const nameEl = row.querySelector('.meal-name');
+      const descEl = row.querySelector('.meal-desc');
+      if (nameEl) dayData.meals[mealIdx].name = nameEl.textContent.trim();
+      if (descEl) dayData.meals[mealIdx].description = descEl.textContent.trim();
+    });
+  }
+
+  return original;
+}
+</script>
+{% endblock %}

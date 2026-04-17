@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% block title %}{{ client.name }} – NHM Coach{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">{{ client.name }}</h1>
+    <p class="page-sub">{{ client.email }}</p>
+  </div>
+  <div class="header-actions">
+    <a href="/client/{{ client.id }}/edit" class="btn-secondary">✏️ Bearbeiten</a>
+    <a href="/" class="btn-secondary">← Dashboard</a>
+  </div>
+</div>
+
+<!-- Client Info Card -->
+<div class="detail-grid">
+  <div class="detail-card">
+    <h3 class="card-title">🧬 Profil</h3>
+    <div class="detail-rows">
+      <div class="detail-row">
+        <span class="detail-label">NST-Typ</span>
+        <span class="detail-value badge-{{ client.nst_type }}">
+          {{ {'lion':'🦁 Löwe','falcon':'🦅 Falke','chameleon':'🦎 Chamäleon','wolf':'🐺 Wolf','owl':'🦉 Eule'}[client.nst_type] }}
+        </span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Ziel</span>
+        <span class="detail-value">{{ {'fat_loss':'🔥 Fettreduktion','muscle':'💪 Muskelaufbau','energy':'⚡ Mehr Energie','health':'❤️ Allg. Gesundheit'}[client.goal] }}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Sprache</span>
+        <span class="detail-value">{{ '🇩🇪 Deutsch' if client.lang == 'de' else '🇬🇧 Englisch' }}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Plandauer</span>
+        <span class="detail-value">{{ client.duration }} Wochen</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Trainingstage</span>
+        <span class="detail-value">{{ client.train_days }}x / Woche</span>
+      </div>
+      {% if client.calories %}
+      <div class="detail-row">
+        <span class="detail-label">Kalorien-Ziel</span>
+        <span class="detail-value">{{ client.calories }} kcal</span>
+      </div>
+      {% endif %}
+    </div>
+    <div class="pillars-row">
+      {% for p in client.pillars %}
+      <span class="pillar-tag pillar-{{ p }}">{{ {'training':'💪 Training','nutrition':'🥗 Ernährung','stress':'🧘 Stress','sleep':'😴 Schlaf'}[p] }}</span>
+      {% endfor %}
+    </div>
+    {% if client.notes %}
+    <div class="notes-box">
+      <strong>📝 Notizen:</strong>
+      <p>{{ client.notes }}</p>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Actions Card -->
+  <div class="detail-card">
+    <h3 class="card-title">⚡ Aktionen</h3>
+    <div class="action-buttons-stack">
+      <button class="btn-primary btn-full btn-generate" data-client-id="{{ client.id }}">
+        🤖 Neuen Plan generieren
+      </button>
+      {% if latest_plan %}
+      <a href="/plan/{{ latest_plan.id }}" class="btn-accent btn-full">
+        📄 Aktuellen Plan ansehen (v{{ latest_plan.version }})
+      </a>
+      <a href="/plan/{{ latest_plan.id }}/pdf" class="btn-secondary btn-full">
+        ⬇️ PDF herunterladen
+      </a>
+      <a href="/client/{{ client.id }}/feedback" class="btn-feedback btn-full">
+        🔄 Feedback-Runde starten
+      </a>
+      {% endif %}
+      <form method="POST" action="/client/{{ client.id }}/delete" onsubmit="return confirm('Kunden und alle Pläne wirklich löschen?')">
+        <button type="submit" class="btn-danger btn-full">🗑️ Kunden löschen</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Plan History -->
+{% if plans %}
+<div class="section-title-row">
+  <h2>📋 Plan-Historie</h2>
+</div>
+<div class="plan-list">
+  {% for plan in plans %}
+  <div class="plan-item">
+    <div class="plan-item-info">
+      <span class="plan-version">Version {{ plan.version }}</span>
+      <span class="status-badge status-{{ plan.status }}">
+        {{ 'Entwurf' if plan.status == 'draft' else 'Gesendet' }}
+      </span>
+      <span class="plan-date">{{ plan.created_at[:10] }}</span>
+      {% if plan.sent_at %}
+      <span class="plan-date">Gesendet: {{ plan.sent_at[:10] }}</span>
+      {% endif %}
+    </div>
+    <div class="plan-item-actions">
+      <a href="/plan/{{ plan.id }}" class="btn-secondary btn-sm">Ansehen</a>
+      <a href="/plan/{{ plan.id }}/pdf" class="btn-secondary btn-sm">PDF</a>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.querySelector('.btn-generate')?.addEventListener('click', async function() {
+  const clientId = this.dataset.clientId;
+  showLoading('KI generiert deinen Plan… (30–60 Sek.)');
+  try {
+    const res = await fetch(`/client/${clientId}/generate`, { method: 'POST' });
+    const data = await res.json();
+    hideLoading();
+    if (data.success) {
+      window.location.href = data.redirect;
+    } else {
+      showToast('Fehler: ' + data.error, 'error');
+    }
+  } catch(e) {
+    hideLoading();
+    showToast('Verbindungsfehler', 'error');
+  }
+});
+</script>
+{% endblock %}

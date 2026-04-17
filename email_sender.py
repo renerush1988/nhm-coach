@@ -1,0 +1,208 @@
+# -*- coding: utf-8 -*-
+"""
+email_sender.py — NHM Coach Backoffice
+Sends coaching plan PDF to client via SMTP (Gmail or any SMTP provider).
+"""
+
+import os
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.application import MIMEApplication
+from datetime import datetime
+
+SMTP_HOST = os.environ.get("SMTP_HOST", "smtp.gmail.com")
+SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
+SMTP_USER = os.environ.get("SMTP_USER", "")
+SMTP_PASS = os.environ.get("SMTP_PASS", "")
+FROM_NAME = os.environ.get("FROM_NAME", "René Rusch | NeuroHealthMastery")
+FROM_EMAIL = os.environ.get("FROM_EMAIL", SMTP_USER)
+
+NST_NAMES = {
+    "lion":      {"de": "Löwe",      "en": "Lion"},
+    "falcon":    {"de": "Falke",     "en": "Falcon"},
+    "chameleon": {"de": "Chamäleon", "en": "Chameleon"},
+    "wolf":      {"de": "Wolf",      "en": "Wolf"},
+    "owl":       {"de": "Eule",      "en": "Owl"},
+}
+
+GOAL_LABELS = {
+    "fat_loss":  {"de": "Fettreduktion",         "en": "Fat Loss"},
+    "muscle":    {"de": "Muskelaufbau",           "en": "Muscle Building"},
+    "energy":    {"de": "Mehr Energie",           "en": "More Energy"},
+    "health":    {"de": "Allgemeine Gesundheit",  "en": "General Health"},
+}
+
+
+def build_email_body(client_data: dict, plan_version: int, lang: str) -> tuple[str, str]:
+    """Returns (subject, html_body)"""
+    name = client_data.get("name", "")
+    nst = client_data.get("nst_type", "lion")
+    goal_key = client_data.get("goal", "fat_loss")
+    duration = client_data.get("duration", "4")
+
+    nst_name = NST_NAMES.get(nst, {}).get(lang, nst)
+    goal_label = GOAL_LABELS.get(goal_key, {}).get(lang, goal_key)
+
+    if lang == "de":
+        subject = f"Dein persönlicher Coaching-Plan – {name} | NeuroHealthMastery"
+        if plan_version > 1:
+            subject = f"Dein aktualisierter Coaching-Plan (v{plan_version}) – {name} | NeuroHealthMastery"
+
+        html = f"""<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  body {{ font-family: Arial, sans-serif; background: #f8fafc; margin: 0; padding: 0; }}
+  .container {{ max-width: 600px; margin: 0 auto; background: white; }}
+  .header {{ background: #0a0f1e; padding: 32px 24px; text-align: center; }}
+  .header h1 {{ color: #06b6d4; font-size: 22px; margin: 0 0 8px; }}
+  .header p {{ color: #94a3b8; font-size: 14px; margin: 0; }}
+  .body {{ padding: 32px 24px; }}
+  .body h2 {{ color: #0a0f1e; font-size: 18px; }}
+  .body p {{ color: #374151; font-size: 15px; line-height: 1.6; }}
+  .highlight {{ background: #f0fdfa; border-left: 4px solid #06b6d4; padding: 16px; margin: 20px 0; border-radius: 4px; }}
+  .highlight p {{ margin: 0; color: #0a0f1e; font-weight: bold; }}
+  .footer {{ background: #f1f5f9; padding: 20px 24px; text-align: center; }}
+  .footer p {{ color: #94a3b8; font-size: 12px; margin: 4px 0; }}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>NeuroHealthMastery</h1>
+    <p>Dein persönlicher Coaching-Plan ist bereit</p>
+  </div>
+  <div class="body">
+    <h2>Hallo {name},</h2>
+    <p>
+      dein persönlicher <strong>{duration}-Wochen-Coaching-Plan</strong> ist fertig und wartet auf dich.
+      Er wurde speziell auf deinen <strong>Natural Signature Type – {nst_name}</strong> und dein
+      Ziel <strong>{goal_label}</strong> abgestimmt.
+    </p>
+    <div class="highlight">
+      <p>📎 Dein Plan ist als PDF-Datei an diese E-Mail angehängt.</p>
+    </div>
+    <p>
+      Der Plan enthält konkrete, umsetzbare Maßnahmen – abgestimmt auf deine Biologie,
+      deine Stärken und dein Ziel. Lies ihn durch, starte mit Woche 1 und melde dich
+      bei Fragen jederzeit.
+    </p>
+    <p>
+      Nach Abschluss des Plans werde ich mich bei dir melden, um Feedback zu sammeln
+      und deinen Plan für den nächsten Zyklus anzupassen.
+    </p>
+    <p>
+      Bei Fragen erreichst du mich jederzeit:<br>
+      📧 info@neurohealthmastery.de<br>
+      💬 WhatsApp: +49 157 37557085 (Mo–Fr, 9–18 Uhr)
+    </p>
+    <p>Auf deinen Erfolg!<br><strong>René Rusch</strong><br>NeuroHealthMastery</p>
+  </div>
+  <div class="footer">
+    <p>NeuroHealthMastery | René Rusch | neurohealthmastery.de</p>
+    <p>René Rusch ist kein Arzt. Alle Empfehlungen basieren auf professionellen Zertifikaten und wissenschaftlicher Literatur.</p>
+  </div>
+</div>
+</body>
+</html>"""
+    else:
+        subject = f"Your Personal Coaching Plan – {name} | NeuroHealthMastery"
+        if plan_version > 1:
+            subject = f"Your Updated Coaching Plan (v{plan_version}) – {name} | NeuroHealthMastery"
+
+        html = f"""<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  body {{ font-family: Arial, sans-serif; background: #f8fafc; margin: 0; padding: 0; }}
+  .container {{ max-width: 600px; margin: 0 auto; background: white; }}
+  .header {{ background: #0a0f1e; padding: 32px 24px; text-align: center; }}
+  .header h1 {{ color: #06b6d4; font-size: 22px; margin: 0 0 8px; }}
+  .header p {{ color: #94a3b8; font-size: 14px; margin: 0; }}
+  .body {{ padding: 32px 24px; }}
+  .body h2 {{ color: #0a0f1e; font-size: 18px; }}
+  .body p {{ color: #374151; font-size: 15px; line-height: 1.6; }}
+  .highlight {{ background: #f0fdfa; border-left: 4px solid #06b6d4; padding: 16px; margin: 20px 0; border-radius: 4px; }}
+  .highlight p {{ margin: 0; color: #0a0f1e; font-weight: bold; }}
+  .footer {{ background: #f1f5f9; padding: 20px 24px; text-align: center; }}
+  .footer p {{ color: #94a3b8; font-size: 12px; margin: 4px 0; }}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>NeuroHealthMastery</h1>
+    <p>Your personal coaching plan is ready</p>
+  </div>
+  <div class="body">
+    <h2>Hello {name},</h2>
+    <p>
+      your personal <strong>{duration}-week coaching plan</strong> is ready for you.
+      It has been specifically tailored to your <strong>Natural Signature Type – {nst_name}</strong>
+      and your goal of <strong>{goal_label}</strong>.
+    </p>
+    <div class="highlight">
+      <p>📎 Your plan is attached as a PDF file to this email.</p>
+    </div>
+    <p>
+      The plan contains concrete, actionable steps – aligned with your biology,
+      your strengths, and your goal. Read through it, start with Week 1, and
+      reach out any time with questions.
+    </p>
+    <p>
+      After completing the plan, I will follow up to collect your feedback
+      and adjust your plan for the next cycle.
+    </p>
+    <p>
+      Questions? Reach me any time:<br>
+      📧 info@neurohealthmastery.de<br>
+      💬 WhatsApp: +49 157 37557085 (Mon–Fri, 9am–6pm CET)
+    </p>
+    <p>To your success!<br><strong>René Rusch</strong><br>NeuroHealthMastery</p>
+  </div>
+  <div class="footer">
+    <p>NeuroHealthMastery | René Rusch | neurohealthmastery.de</p>
+    <p>René Rusch is not a medical doctor. All recommendations are based on professional certifications and peer-reviewed literature.</p>
+  </div>
+</div>
+</body>
+</html>"""
+
+    return subject, html
+
+
+def send_plan_email(client_data: dict, pdf_bytes: bytes, plan_version: int = 1) -> bool:
+    """Send coaching plan PDF to client. Returns True on success."""
+    if not SMTP_USER or not SMTP_PASS:
+        raise ValueError("SMTP credentials not configured. Set SMTP_USER and SMTP_PASS environment variables.")
+
+    lang = client_data.get("lang", "de")
+    to_email = client_data.get("email", "")
+    to_name = client_data.get("name", "")
+
+    subject, html_body = build_email_body(client_data, plan_version, lang)
+
+    msg = MIMEMultipart("mixed")
+    msg["Subject"] = subject
+    msg["From"] = f"{FROM_NAME} <{FROM_EMAIL}>"
+    msg["To"] = f"{to_name} <{to_email}>"
+
+    # HTML body
+    msg.attach(MIMEText(html_body, "html", "utf-8"))
+
+    # PDF attachment
+    pdf_part = MIMEApplication(pdf_bytes, _subtype="pdf")
+    filename = f"NHM_Coaching_Plan_{to_name.replace(' ', '_')}_v{plan_version}.pdf"
+    pdf_part.add_header("Content-Disposition", "attachment", filename=filename)
+    msg.attach(pdf_part)
+
+    with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+        server.ehlo()
+        server.starttls()
+        server.login(SMTP_USER, SMTP_PASS)
+        server.sendmail(FROM_EMAIL, to_email, msg.as_string())
+
+    return True

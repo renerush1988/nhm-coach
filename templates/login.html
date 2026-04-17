@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NHM Coach – Login</title>
+<link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="login-body">
+<div class="login-container">
+  <div class="login-logo">
+    <div class="logo-icon">🧠</div>
+    <h1>NeuroHealthMastery</h1>
+    <p>Coach Backoffice</p>
+  </div>
+  <form class="login-form" method="POST" action="/login">
+    <div class="form-group">
+      <label for="password">Passwort</label>
+      <input type="password" id="password" name="password" placeholder="Dein Passwort" required autofocus>
+    </div>
+    {% if error %}
+    <div class="alert alert-error">Falsches Passwort. Bitte erneut versuchen.</div>
+    {% endif %}
+    <button type="submit" class="btn-primary btn-full">Einloggen</button>
+  </form>
+</div>
+</body>
+</html>

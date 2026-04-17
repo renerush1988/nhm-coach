@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% block title %}Feedback – {{ client.name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">🔄 Feedback-Runde</h1>
+    <p class="page-sub">{{ client.name }} – Plan anpassen</p>
+  </div>
+  <a href="/client/{{ client.id }}" class="btn-secondary">← Zurück</a>
+</div>
+
+<div class="form-container">
+  <div class="feedback-intro">
+    <p>Trage das Feedback von <strong>{{ client.name }}</strong> ein. Die KI erstellt anschließend automatisch einen angepassten neuen Plan.</p>
+  </div>
+
+  <div class="feedback-form" id="feedback-form">
+
+    {% if 'nutrition' in pillars %}
+    <div class="feedback-section">
+      <h3>🥗 Ernährung</h3>
+      <div class="form-group">
+        <label>Welche Mahlzeiten haben nicht geschmeckt oder waren unpraktisch?</label>
+        <textarea name="nutrition_disliked" rows="3" placeholder="z. B. Das Frühstück war zu aufwändig, Mittagessen Tag 3 hat nicht geschmeckt…"></textarea>
+      </div>
+      <div class="form-group">
+        <label>Wie war die Sättigung generell? (zu wenig / gut / zu viel)</label>
+        <select name="nutrition_satiety">
+          <option value="">Bitte wählen…</option>
+          <option value="zu wenig">Zu wenig – war oft hungrig</option>
+          <option value="gut">Gut – war meistens satt</option>
+          <option value="zu viel">Zu viel – konnte nicht alles essen</option>
+        </select>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if 'training' in pillars %}
+    <div class="feedback-section">
+      <h3>💪 Training</h3>
+      <div class="form-group">
+        <label>Welche Übungen waren zu schwer, zu leicht oder ungeeignet?</label>
+        <textarea name="training_issues" rows="3" placeholder="z. B. Kniebeugen waren zu schwer, Liegestütze zu leicht, Rückenprobleme bei Kreuzheben…"></textarea>
+      </div>
+      <div class="form-group">
+        <label>Wie war die allgemeine Trainingsbelastung?</label>
+        <select name="training_load">
+          <option value="">Bitte wählen…</option>
+          <option value="zu leicht">Zu leicht – hätte mehr Volumen vertragen</option>
+          <option value="genau richtig">Genau richtig</option>
+          <option value="zu schwer">Zu schwer – war oft erschöpft</option>
+        </select>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if 'stress' in pillars %}
+    <div class="feedback-section">
+      <h3>🧘 Stressmanagement</h3>
+      <div class="form-group">
+        <label>Welche Techniken haben gut funktioniert, welche nicht?</label>
+        <textarea name="stress_feedback" rows="3" placeholder="z. B. Atemübungen haben sehr geholfen, Meditation war schwer umzusetzen…"></textarea>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if 'sleep' in pillars %}
+    <div class="feedback-section">
+      <h3>😴 Schlaf</h3>
+      <div class="form-group">
+        <label>Wie war die Schlafqualität in den letzten Wochen?</label>
+        <select name="sleep_quality">
+          <option value="">Bitte wählen…</option>
+          <option value="sehr schlecht">Sehr schlecht – kaum Verbesserung</option>
+          <option value="etwas besser">Etwas besser als vorher</option>
+          <option value="deutlich besser">Deutlich besser</option>
+          <option value="sehr gut">Sehr gut – fühle mich erholt</option>
+        </select>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="feedback-section">
+      <h3>📝 Allgemeines Feedback</h3>
+      <div class="form-group">
+        <label>Was hat insgesamt gut funktioniert?</label>
+        <textarea name="general_positive" rows="3" placeholder="z. B. Die Struktur war super, die Rezepte waren lecker, das Training hat Spaß gemacht…"></textarea>
+      </div>
+      <div class="form-group">
+        <label>Was soll im neuen Plan anders sein?</label>
+        <textarea name="general_changes" rows="3" placeholder="z. B. Mehr Abwechslung beim Frühstück, weniger Trainingstage, mehr Fokus auf Schlaf…"></textarea>
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <button type="button" class="btn-primary btn-large" onclick="submitFeedback()">
+        🤖 Angepassten Plan generieren
+      </button>
+      <a href="/client/{{ client.id }}" class="btn-secondary btn-large">Abbrechen</a>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const CLIENT_ID = {{ client.id }};
+const PLAN_ID = {{ latest_plan.id if latest_plan else 'null' }};
+
+async function submitFeedback() {
+  const form = document.getElementById('feedback-form');
+  const answers = {};
+  form.querySelectorAll('textarea, select').forEach(el => {
+    if (el.value.trim()) {
+      answers[el.name] = el.value.trim();
+    }
+  });
+
+  showLoading('KI erstellt angepassten Plan… (30–60 Sek.)');
+  try {
+    const res = await fetch(`/client/${CLIENT_ID}/feedback`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({answers, plan_id: PLAN_ID})
+    });
+    const data = await res.json();
+    hideLoading();
+    if (data.success) {
+      window.location.href = data.redirect;
+    } else {
+      showToast('Fehler: ' + data.error, 'error');
+    }
+  } catch(e) {
+    hideLoading();
+    showToast('Verbindungsfehler', 'error');
+  }
+}
+</script>
+{% endblock %}

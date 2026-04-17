@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}NHM Coach{% endblock %}</title>
+<link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<nav class="navbar">
+  <div class="nav-brand">
+    <span class="nav-icon">🧠</span>
+    <span class="nav-title">NHM Coach</span>
+  </div>
+  <div class="nav-links">
+    <a href="/" class="nav-link {% if request.url.path == '/' %}active{% endif %}">
+      <span>📋</span> Dashboard
+    </a>
+    <a href="/client/new" class="nav-link {% if request.url.path == '/client/new' %}active{% endif %}">
+      <span>➕</span> Neuer Kunde
+    </a>
+    <a href="/logout" class="nav-link nav-logout">
+      <span>🚪</span> Logout
+    </a>
+  </div>
+</nav>
+
+<main class="main-content">
+  {% block content %}{% endblock %}
+</main>
+
+<div id="toast" class="toast hidden"></div>
+<div id="loading-overlay" class="loading-overlay hidden">
+  <div class="loading-box">
+    <div class="loading-spinner"></div>
+    <p id="loading-text">KI generiert deinen Plan…</p>
+    <p class="loading-sub">Das dauert ca. 30–60 Sekunden.</p>
+  </div>
+</div>
+
+<script src="/static/js/app.js"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

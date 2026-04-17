@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Dashboard – NHM Coach{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Dashboard</h1>
+    <p class="page-sub">{{ total }} Kunde{{ 'n' if total != 1 else '' }} gesamt</p>
+  </div>
+  <a href="/client/new" class="btn-primary">
+    <span>➕</span> Neuer Kunde
+  </a>
+</div>
+
+{% if clients %}
+<div class="client-grid">
+  {% for c in clients %}
+  <div class="client-card">
+    <div class="client-card-header">
+      <div class="client-avatar">{{ c.name[0].upper() }}</div>
+      <div class="client-info">
+        <h3 class="client-name">{{ c.name }}</h3>
+        <p class="client-email">{{ c.email }}</p>
+      </div>
+      <div class="client-badge badge-{{ c.nst_type }}">
+        {{ {'lion':'🦁 Löwe','falcon':'🦅 Falke','chameleon':'🦎 Chamäleon','wolf':'🐺 Wolf','owl':'🦉 Eule'}[c.nst_type] }}
+      </div>
+    </div>
+
+    <div class="client-meta">
+      <div class="meta-item">
+        <span class="meta-label">Ziel</span>
+        <span class="meta-value">{{ {'fat_loss':'Fettreduktion','muscle':'Muskelaufbau','energy':'Mehr Energie','health':'Allg. Gesundheit'}[c.goal] }}</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-label">Sprache</span>
+        <span class="meta-value">{{ 'Deutsch' if c.lang == 'de' else 'Englisch' }}</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-label">Dauer</span>
+        <span class="meta-value">{{ c.duration }} Wochen</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-label">Plan</span>
+        <span class="status-badge status-{{ c.plan_status }}">
+          {% if c.plan_status == 'none' %}Kein Plan
+          {% elif c.plan_status == 'draft' %}Entwurf v{{ c.plan_version }}
+          {% elif c.plan_status == 'sent' %}Gesendet v{{ c.plan_version }}
+          {% endif %}
+        </span>
+      </div>
+    </div>
+
+    <div class="client-pillars">
+      {% for p in c.pillars %}
+      <span class="pillar-tag pillar-{{ p }}">{{ {'training':'💪 Training','nutrition':'🥗 Ernährung','stress':'🧘 Stress','sleep':'😴 Schlaf'}[p] }}</span>
+      {% endfor %}
+    </div>
+
+    <div class="client-actions">
+      <a href="/client/{{ c.id }}" class="btn-secondary btn-sm">Öffnen</a>
+      {% if c.plan_id %}
+      <a href="/plan/{{ c.plan_id }}" class="btn-accent btn-sm">Plan ansehen</a>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+{% else %}
+<div class="empty-state">
+  <div class="empty-icon">👥</div>
+  <h2>Noch keine Kunden</h2>
+  <p>Lege deinen ersten Kunden an und generiere sofort einen personalisierten Plan.</p>
+  <a href="/client/new" class="btn-primary">Ersten Kunden anlegen</a>
+</div>
+{% endif %}
+{% endblock %}

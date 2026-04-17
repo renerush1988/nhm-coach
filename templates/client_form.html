@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Kunde bearbeiten' if mode == 'edit' else 'Neuer Kunde' }} – NHM Coach{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">{{ 'Kunde bearbeiten' if mode == 'edit' else 'Neuer Kunde' }}</h1>
+    <p class="page-sub">{{ 'Kundendaten aktualisieren' if mode == 'edit' else 'Kundendaten eingeben und Plan generieren' }}</p>
+  </div>
+  <a href="{{ '/client/' + client.id|string if mode == 'edit' else '/' }}" class="btn-secondary">← Zurück</a>
+</div>
+
+<div class="form-container">
+  <form method="POST" action="{{ '/client/' + client.id|string + '/edit' if mode == 'edit' else '/client/new' }}" id="client-form">
+
+    <!-- Section: Persönliche Daten -->
+    <div class="form-section">
+      <h2 class="form-section-title">👤 Persönliche Daten</h2>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="name">Name <span class="required">*</span></label>
+          <input type="text" id="name" name="name" value="{{ client.name if client else '' }}" placeholder="Vor- und Nachname" required>
+        </div>
+        <div class="form-group">
+          <label for="email">E-Mail <span class="required">*</span></label>
+          <input type="email" id="email" name="email" value="{{ client.email if client else '' }}" placeholder="kunde@email.de" required>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="lang">Sprache des Plans</label>
+          <select id="lang" name="lang">
+            <option value="de" {{ 'selected' if not client or client.lang == 'de' }}>🇩🇪 Deutsch</option>
+            <option value="en" {{ 'selected' if client and client.lang == 'en' }}>🇬🇧 Englisch</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section: NST-Typ -->
+    <div class="form-section">
+      <h2 class="form-section-title">🧬 Natural Signature Type</h2>
+      <div class="nst-grid">
+        {% set types = [
+          ('lion', '🦁', 'Löwe', 'Dopamingetrieben, wettbewerbsorientiert, braucht schnelle Ergebnisse'),
+          ('falcon', '🦅', 'Falke', 'Analytisch, effizient, optimierungsgetrieben, liebt Daten'),
+          ('chameleon', '🦎', 'Chamäleon', 'Flexibel, anpassungsfähig, braucht Abwechslung'),
+          ('wolf', '🐺', 'Wolf', 'Sozial, teamorientiert, braucht Gemeinschaft'),
+          ('owl', '🦉', 'Eule', 'Tiefgründig, reflektiert, braucht Sinn und Verständnis'),
+        ] %}
+        {% for value, icon, label, desc in types %}
+        <label class="nst-option {{ 'selected' if client and client.nst_type == value }}" data-value="{{ value }}">
+          <input type="radio" name="nst_type" value="{{ value }}" {{ 'checked' if client and client.nst_type == value }} required>
+          <div class="nst-icon">{{ icon }}</div>
+          <div class="nst-label">{{ label }}</div>
+          <div class="nst-desc">{{ desc }}</div>
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Section: Ziel & Plan -->
+    <div class="form-section">
+      <h2 class="form-section-title">🎯 Ziel & Planparameter</h2>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="goal">Hauptziel <span class="required">*</span></label>
+          <select id="goal" name="goal" required>
+            <option value="">Bitte wählen…</option>
+            <option value="fat_loss" {{ 'selected' if client and client.goal == 'fat_loss' }}>🔥 Fettreduktion</option>
+            <option value="muscle" {{ 'selected' if client and client.goal == 'muscle' }}>💪 Muskelaufbau</option>
+            <option value="energy" {{ 'selected' if client and client.goal == 'energy' }}>⚡ Mehr Energie</option>
+            <option value="health" {{ 'selected' if client and client.goal == 'health' }}>❤️ Allgemeine Gesundheit</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="duration">Plandauer</label>
+          <select id="duration" name="duration">
+            <option value="2" {{ 'selected' if client and client.duration == '2' }}>2 Wochen</option>
+            <option value="4" {{ 'selected' if not client or client.duration == '4' }}>4 Wochen</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="train_days">Trainingstage pro Woche</label>
+          <select id="train_days" name="train_days">
+            {% for d in ['2','3','4','5'] %}
+            <option value="{{ d }}" {{ 'selected' if client and client.train_days == d or (not client and d == '3') }}>{{ d }} Tage</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="calories">Kalorien-Ziel (optional)</label>
+          <input type="number" id="calories" name="calories" value="{{ client.calories if client else '' }}" placeholder="z. B. 2200" min="1000" max="5000">
+          <span class="form-hint">kcal/Tag – leer lassen = KI berechnet automatisch</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section: Säulen -->
+    <div class="form-section">
+      <h2 class="form-section-title">🏛️ Aktive Säulen</h2>
+      <p class="form-hint">Wähle 1–4 Säulen aus, die der Plan enthalten soll.</p>
+      <div class="pillars-grid">
+        {% set all_pillars = [
+          ('training', '💪', 'Training', 'Trainingsplan mit Übungen, Sätzen, Wiederholungen'),
+          ('nutrition', '🥗', 'Ernährung', 'Ernährungsplan mit Mahlzeiten, Kalorien, Makros'),
+          ('stress', '🧘', 'Stressmanagement', 'Tägliche Routinen und Techniken'),
+          ('sleep', '😴', 'Schlafoptimierung', 'Abendroutine, Umgebung, Supplements'),
+        ] %}
+        {% for value, icon, label, desc in all_pillars %}
+        <label class="pillar-option {{ 'selected' if not client or value in client.pillars }}" data-value="{{ value }}">
+          <input type="checkbox" name="pillars" value="{{ value }}" {{ 'checked' if not client or value in client.pillars }}>
+          <div class="pillar-icon">{{ icon }}</div>
+          <div class="pillar-label">{{ label }}</div>
+          <div class="pillar-desc">{{ desc }}</div>
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Section: Notizen -->
+    <div class="form-section">
+      <h2 class="form-section-title">📝 Besonderheiten & Notizen</h2>
+      <div class="form-group">
+        <label for="notes">Interne Notizen (nur für dich sichtbar)</label>
+        <textarea id="notes" name="notes" rows="4" placeholder="z. B. Knieprobleme, kein Gluten, Schichtarbeit, braucht viel Motivation…">{{ client.notes if client else '' }}</textarea>
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="btn-primary btn-large">
+        {{ '💾 Änderungen speichern' if mode == 'edit' else '✅ Kunden anlegen' }}
+      </button>
+      <a href="{{ '/client/' + client.id|string if mode == 'edit' else '/' }}" class="btn-secondary btn-large">Abbrechen</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// NST type selection visual
+document.querySelectorAll('.nst-option').forEach(opt => {
+  opt.addEventListener('click', () => {
+    document.querySelectorAll('.nst-option').forEach(o => o.classList.remove('selected'));
+    opt.classList.add('selected');
+  });
+});
+// Pillar selection visual
+document.querySelectorAll('.pillar-option').forEach(opt => {
+  const cb = opt.querySelector('input[type=checkbox]');
+  opt.addEventListener('click', (e) => {
+    if (e.target !== cb) {
+      cb.checked = !cb.checked;
+    }
+    opt.classList.toggle('selected', cb.checked);
+  });
+});
+</script>
+{% endblock %}
