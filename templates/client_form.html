@@ -101,7 +101,7 @@
     <!-- Section: Säulen -->
     <div class="form-section">
       <h2 class="form-section-title">🏛️ Aktive Säulen</h2>
-      <p class="form-hint">Wähle 1–4 Säulen aus, die der Plan enthalten soll.</p>
+      <p class="form-hint">Wähle 1–4 Säulen aus, die der Plan enthalten soll. <strong>Mindestens eine Säule muss ausgewählt sein.</strong></p>
       <div class="pillars-grid">
         {% set all_pillars = [
           ('training', '💪', 'Training', 'Trainingsplan mit Übungen, Sätzen, Wiederholungen'),
@@ -110,8 +110,8 @@
           ('sleep', '😴', 'Schlafoptimierung', 'Abendroutine, Umgebung, Supplements'),
         ] %}
         {% for value, icon, label, desc in all_pillars %}
-        <label class="pillar-option {{ 'selected' if not client or value in client.pillars }}" data-value="{{ value }}">
-          <input type="checkbox" name="pillars" value="{{ value }}" {{ 'checked' if not client or value in client.pillars }}>
+        <label class="pillar-option {{ 'selected' if client and value in client.pillars }}" data-value="{{ value }}">
+          <input type="checkbox" name="pillars" value="{{ value }}" {{ 'checked' if client and value in client.pillars }}>
           <div class="pillar-icon">{{ icon }}</div>
           <div class="pillar-label">{{ label }}</div>
           <div class="pillar-desc">{{ desc }}</div>
@@ -157,6 +157,15 @@ document.querySelectorAll('.pillar-option').forEach(opt => {
     }
     opt.classList.toggle('selected', cb.checked);
   });
+});
+
+// Validierung: mindestens eine Säule muss ausgewählt sein
+document.getElementById('client-form').addEventListener('submit', function(e) {
+  const checked = document.querySelectorAll('input[name="pillars"]:checked');
+  if (checked.length === 0) {
+    e.preventDefault();
+    alert('Bitte wähle mindestens eine Säule aus (Training, Ernährung, Stressmanagement oder Schlafoptimierung).');
+  }
 });
 </script>
 {% endblock %}
