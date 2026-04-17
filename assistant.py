@@ -10,11 +10,18 @@ import os
 import json
 from openai import OpenAI
 
-_api_key = os.environ.get("OPENAI_API_KEY", "")
-_base_url = os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1")
-_model = os.environ.get("OPENAI_MODEL", "gpt-4.1-mini")
+_gemini_key = os.environ.get("GEMINI_API_KEY", "")
+_openai_key = os.environ.get("OPENAI_API_KEY", "")
 
-client = OpenAI(api_key=_api_key, base_url=_base_url)
+if _gemini_key:
+    client = OpenAI(
+        api_key=_gemini_key,
+        base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
+    )
+    _model = "gemini-2.0-flash"
+else:
+    client = OpenAI(api_key=_openai_key)
+    _model = "gpt-4.1-mini"
 
 SYSTEM_PROMPT = """Du bist der persönliche KI-Assistent von René Rusch, dem Gründer von NeuroHealth Mastery (NHM).
 
