@@ -29,7 +29,7 @@ NST_PROFILES = {
             "kurze Einheiten (35–45 min). Lange Pausen (3–4 min) um Adrenalin nicht zu erhöhen. "
             "Keine Variation nötig – Intensität ist der Schlüssel. Häufigkeit: 5–7x/Woche möglich.\n"
             "Tempo-Empfehlung: Langsame Exzentriks (3–5 Sek.), Pausen unten (1–2 Sek.), explosive Konzentriks.\n"
-            "Beispiel-Tempo: 4.1.X.0 (4 Sek. runter, 1 Sek. Pause, explosiv hoch, keine Pause oben).\n"
+            "Beispiel-Tempo: 4-1-X-0 (4 Sek. runter, 1 Sek. Pause, explosiv hoch, keine Pause oben).\n"
             "Stressmanagement: Dopamin-Erschöpfung ist das Hauptproblem. Kurze, intensive Erholungsphasen.\n"
             "Schlaf: Klare Abendroutine, Magnesium Glycinat, frühes Abschalten."
         ),
@@ -40,7 +40,7 @@ NST_PROFILES = {
             "short sessions (35–45 min). Long rest intervals (3–4 min) to avoid increasing adrenalin. "
             "No variety needed – intensity is the key. Frequency: 5–7x/week possible.\n"
             "Tempo recommendation: Slow eccentrics (3–5 sec), pauses at bottom (1–2 sec), explosive concentrics.\n"
-            "Example tempo: 4.1.X.0 (4 sec down, 1 sec pause, explosive up, no pause at top).\n"
+            "Example tempo: 4-1-X-0 (4 sec down, 1 sec pause, explosive up, no pause at top).\n"
             "Stress: Dopamine depletion is the main issue. Short intense recovery phases.\n"
             "Sleep: Clear evening routine, magnesium glycinate, early shutdown."
         )
@@ -52,7 +52,7 @@ NST_PROFILES = {
             "Stretch-Reflex, Variation und viele verschiedene Aufgaben pro Einheit. 5–6 Übungen, 2–3 Arbeitssätze, "
             "45–60 min. Pausen max. 2 min (Paarungen geben Erholungszeit). Frequenz: 5–6x/Woche.\n"
             "Tempo-Empfehlung: Explosiv konzentrisch, Stretch-Reflex nutzen, schnelle Exzentriks.\n"
-            "Beispiel-Tempo: 2.0.X.0 (2 Sek. runter, keine Pause, explosiv hoch, keine Pause oben).\n"
+            "Beispiel-Tempo: 2-0-X-0 (2 Sek. runter, keine Pause, explosiv hoch, keine Pause oben).\n"
             "Stressmanagement: Kognitive Überlastung vermeiden, Entscheidungsmüdigkeit reduzieren.\n"
             "Schlaf: Schlaftracking, konsistente Schlafzeiten, optimale Schlafumgebung."
         ),
@@ -62,7 +62,7 @@ NST_PROFILES = {
             "stretch reflex, variation, and many different tasks per session. 5–6 exercises, 2–3 work sets, "
             "45–60 min. Rest max. 2 min (pairings provide recovery). Frequency: 5–6x/week.\n"
             "Tempo recommendation: Explosive concentric, use stretch reflex, fast eccentrics.\n"
-            "Example tempo: 2.0.X.0 (2 sec down, no pause, explosive up, no pause at top).\n"
+            "Example tempo: 2-0-X-0 (2 sec down, no pause, explosive up, no pause at top).\n"
             "Stress: Avoid cognitive overload, reduce decision fatigue.\n"
             "Sleep: Sleep tracking, consistent sleep times, optimal sleep environment."
         )
@@ -75,7 +75,7 @@ NST_PROFILES = {
             "muskulärem Training in jeder Einheit. 5–6 Übungen, 3–4 Arbeitssätze, 60–75 min. "
             "Pausen unter 2 min (kürzeste Pausen aller Typen – Adrenalin ist Stärke). Frequenz: 4–6x/Woche.\n"
             "Tempo-Empfehlung: Alle Tempos funktionieren! Variation ist wichtig.\n"
-            "Beispiel-Tempos: 3.1.2.0 (kontrolliert) oder 2.0.X.0 (explosiv) – mix pro Einheit.\n"
+            "Beispiel-Tempos: 3-1-2-0 (kontrolliert) oder 2-0-X-0 (explosiv) – mix pro Einheit.\n"
             "Ernährung: Carb-Cycling ideal (Abwechslung zwischen Trainings- und Ruhetagen).\n"
             "Stressmanagement: Überstimulation vermeiden, Anpassungsfähigkeit ist Stärke.\n"
             "Schlaf: Flexible Schlafzeiten, aber Mindestschlaf sicherstellen."
@@ -87,7 +87,7 @@ NST_PROFILES = {
             "training in every session. 5–6 exercises, 3–4 work sets, 60–75 min. "
             "Rest under 2 min (shortest rest of all types – adrenalin is a strength). Frequency: 4–6x/week.\n"
             "Tempo recommendation: All tempos work! Variation is key.\n"
-            "Example tempos: 3.1.2.0 (controlled) or 2.0.X.0 (explosive) – mix per session.\n"
+            "Example tempos: 3-1-2-0 (controlled) or 2-0-X-0 (explosive) – mix per session.\n"
             "Nutrition: Carb cycling ideal (variety between training and rest days).\n"
             "Stress: Avoid overstimulation, adaptability is a strength.\n"
             "Sleep: Flexible sleep times but ensure minimum sleep."
@@ -101,7 +101,7 @@ NST_PROFILES = {
             "5–6+ Übungen, 3–6 Arbeitssätze, 60–75 min. Kurze Pausen bei muskulärer Arbeit (<2 min), "
             "längere bei neuralem Anteil (3–4 min). Keine Explosivarbeit. Frequenz: 3–6x/Woche.\n"
             "Tempo-Empfehlung: Langsame Tempos, Pausen, Holds. Fokus auf Muskelkontraktion.\n"
-            "Beispiel-Tempo: 3.2.2.1 (3 Sek. runter, 2 Sek. Pause unten, 2 Sek. hoch, 1 Sek. Pause oben).\n"
+            "Beispiel-Tempo: 3-2-2-1 (3 Sek. runter, 2 Sek. Pause unten, 2 Sek. hoch, 1 Sek. Pause oben).\n"
             "Stressmanagement: Isolation ist Hauptstressor – soziale Verbindungen pflegen.\n"
             "Schlaf: Oxytocin-fördernde Abendroutinen, soziale Entspannung."
         ),
@@ -112,7 +112,7 @@ NST_PROFILES = {
             "5–6+ exercises, 3–6 work sets, 60–75 min. Short rest for muscular work (<2 min), "
             "longer for neural work (3–4 min). No explosive work. Frequency: 3–6x/week.\n"
             "Tempo recommendation: Slow tempos, pauses, holds. Focus on muscle contraction.\n"
-            "Example tempo: 3.2.2.1 (3 sec down, 2 sec pause at bottom, 2 sec up, 1 sec pause at top).\n"
+            "Example tempo: 3-2-2-1 (3 sec down, 2 sec pause at bottom, 2 sec up, 1 sec pause at top).\n"
             "Stress: Isolation is the main stressor – maintain social connections.\n"
             "Sleep: Oxytocin-promoting evening routines, social relaxation."
         )
@@ -125,7 +125,7 @@ NST_PROFILES = {
             "3–4 Arbeitssätze, 45–75 min. Lange Pausen (3–4 min), aber aktiv (Mobilität, SMR, Visualisierung). "
             "Intensität leicht (50–80%), Fokus auf Präzision und motorisches Lernen. Keine Variation. Frequenz: 3–4x/Woche.\n"
             "Tempo-Empfehlung: Langsame Tempos, Pausen, Holds. Präzision über Intensität.\n"
-            "Beispiel-Tempo: 4.2.3.1 (4 Sek. runter, 2 Sek. Pause, 3 Sek. hoch, 1 Sek. Pause oben).\n"
+            "Beispiel-Tempo: 4-2-3-1 (4 Sek. runter, 2 Sek. Pause, 3 Sek. hoch, 1 Sek. Pause oben).\n"
             "Stressmanagement: Overthinking ist Hauptproblem – Entscheidungsrahmen setzen.\n"
             "Schlaf: Schlafarchitektur verstehen, Tiefschlaf optimieren."
         ),
@@ -136,7 +136,7 @@ NST_PROFILES = {
             "45–75 min. Long rest (3–4 min), but active (mobility, SMR, visualisation). "
             "Light intensity (50–80%), focus on precision and motor learning. No variation. Frequency: 3–4x/week.\n"
             "Tempo recommendation: Slow tempos, pauses, holds. Precision over intensity.\n"
-            "Example tempo: 4.2.3.1 (4 sec down, 2 sec pause, 3 sec up, 1 sec pause at top).\n"
+            "Example tempo: 4-2-3-1 (4 sec down, 2 sec pause, 3 sec up, 1 sec pause at top).\n"
             "Stress: Overthinking is the main issue – set decision frameworks.\n"
             "Sleep: Understand sleep architecture, optimise deep sleep."
         )
@@ -167,11 +167,11 @@ NST_NAMES = {
 
 # ── Tempo defaults per NST type ───────────────────────────────────────────────
 NST_TEMPO_DEFAULTS = {
-    "lion":      {"primary": "4.1.X.0", "secondary": "3.1.2.0"},
-    "falcon":    {"primary": "2.0.X.0", "secondary": "1.0.X.0"},
-    "chameleon": {"primary": "3.1.2.0", "secondary": "2.0.X.0"},
-    "wolf":      {"primary": "3.2.2.1", "secondary": "4.1.2.1"},
-    "owl":       {"primary": "4.2.3.1", "secondary": "3.1.3.1"},
+    "lion":      {"primary": "4-1-X-0", "secondary": "3-1-2-0"},
+    "falcon":    {"primary": "2-0-X-0", "secondary": "1-0-X-0"},
+    "chameleon": {"primary": "3-1-2-0", "secondary": "2-0-X-0"},
+    "wolf":      {"primary": "3-2-2-1", "secondary": "4-1-2-1"},
+    "owl":       {"primary": "4-2-3-1", "secondary": "3-1-3-1"},
 }
 
 NST_REST_DEFAULTS = {
@@ -195,7 +195,7 @@ def build_system_prompt(lang: str) -> str:
             "Verwende korrekte deutsche Umlaute (ä, ö, ü, ß). "
             "Kein Markdown außerhalb von JSON-Strings. "
             "Tempo-Notation: 4 Zahlen = Exzentrisch.Isometrisch-unten.Konzentrisch.Isometrisch-oben "
-            "(z.B. 4.1.2.0 = 4 Sek. runter, 1 Sek. Pause, 2 Sek. hoch, keine Pause oben). "
+            "(z.B. 4-1-2-0 = 4 Sek. runter, 1 Sek. Pause, 2 Sek. hoch, keine Pause oben). "
             "X = so schnell wie möglich (explosiv)."
         )
     else:
@@ -208,7 +208,7 @@ def build_system_prompt(lang: str) -> str:
             "ALWAYS respond as a valid JSON object according to the provided schema. "
             "No markdown outside JSON strings. "
             "Tempo notation: 4 numbers = Eccentric.Isometric-bottom.Concentric.Isometric-top "
-            "(e.g. 4.1.2.0 = 4 sec down, 1 sec pause, 2 sec up, no pause at top). "
+            "(e.g. 4-1-2-0 = 4 sec down, 1 sec pause, 2 sec up, no pause at top). "
             "X = as fast as possible (explosive)."
         )
 
@@ -259,7 +259,7 @@ def build_user_prompt(client_data: dict, feedback: dict = None) -> str:
 **NST-Profil und Trainingsempfehlungen:**
 {nst_profile}
 
-**Standard-Tempo für diesen Typ:** Primär: {tempo_default.get('primary', '3.1.2.0')}, Sekundär: {tempo_default.get('secondary', '2.0.X.0')}
+**Standard-Tempo für diesen Typ:** Primär: {tempo_default.get('primary', '3-1-2-0')}, Sekundär: {tempo_default.get('secondary', '2-0-X-0')}
 **Standard-Pause für diesen Typ:** {rest_default}
 """
         if feedback:
@@ -300,7 +300,7 @@ Erstelle das JSON-Objekt mit folgender Struktur (NUR die gewählten Säulen einb
                 "name": "Übungsname (konkret, z.B. Kniebeugen mit Langhantel)",
                 "sets": 4,
                 "reps": "6-8",
-                "tempo": "{tempo_default.get('primary', '3.1.2.0')}",
+                "tempo": "{tempo_default.get('primary', '3-1-2-0')}",
                 "rest": "{rest_default}",
                 "note": "Optionaler Hinweis zur Ausführung"
               }}
@@ -399,7 +399,7 @@ WICHTIG:
 **NST Type Profile and Training Recommendations:**
 {nst_profile}
 
-**Default Tempo for this Type:** Primary: {tempo_default.get('primary', '3.1.2.0')}, Secondary: {tempo_default.get('secondary', '2.0.X.0')}
+**Default Tempo for this Type:** Primary: {tempo_default.get('primary', '3-1-2-0')}, Secondary: {tempo_default.get('secondary', '2-0-X-0')}
 **Default Rest for this Type:** {rest_default}
 """
         if feedback:
@@ -440,7 +440,7 @@ Create the JSON object with the following structure (include ONLY selected pilla
                 "name": "Exercise name (specific, e.g. Barbell Back Squat)",
                 "sets": 4,
                 "reps": "6-8",
-                "tempo": "{tempo_default.get('primary', '3.1.2.0')}",
+                "tempo": "{tempo_default.get('primary', '3-1-2-0')}",
                 "rest": "{rest_default}",
                 "note": "Optional execution note"
               }}

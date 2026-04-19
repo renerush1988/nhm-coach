@@ -956,3 +956,211 @@ a:hover { text-decoration: underline; }
   transition: all 0.2s; flex-shrink: 0;
 }
 .btn-replace-meal.btn-xs:hover { background: var(--bg3); color: var(--white); }
+
+/* ── Säulen-Selektion Panel ──────────────────────────────────────────────── */
+.pillar-select-panel {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  margin-bottom: 20px;
+}
+.pillar-select-header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.pillar-select-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--white);
+}
+.pillar-select-hint {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+.pillar-select-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* ── Pillar Toggle Card ───────────────────────────────────────────────────── */
+.pillar-toggle-card {
+  display: flex;
+  align-items: center;
+  background: var(--bg3);
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  min-width: 200px;
+  flex: 1 1 200px;
+  max-width: 260px;
+}
+.pillar-toggle-card:hover {
+  border-color: var(--accent);
+  background: var(--bg4);
+}
+.pillar-toggle-card input[type="checkbox"] {
+  display: none;
+}
+.pillar-toggle-card.pillar-locked {
+  opacity: 0.55;
+  border-color: var(--border);
+}
+.pillar-toggle-inner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+.pillar-toggle-icon {
+  font-size: 1.4rem;
+  flex-shrink: 0;
+}
+.pillar-toggle-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.pillar-toggle-text strong {
+  font-size: 0.88rem;
+  color: var(--white);
+}
+.pillar-toggle-text small {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+.pillar-toggle-status {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 20px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.pillar-toggle-status.status-active {
+  background: rgba(16,185,129,0.15);
+  color: var(--success);
+  border: 1px solid rgba(16,185,129,0.3);
+}
+.pillar-toggle-status.status-locked {
+  background: rgba(148,163,184,0.1);
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+.pillar-toggle-status.status-sent {
+  background: rgba(6,182,212,0.15);
+  color: var(--accent);
+  border: 1px solid rgba(6,182,212,0.3);
+}
+
+/* ── Pillar Preview Hidden (when deselected) ─────────────────────────────── */
+.pillar-preview-hidden {
+  opacity: 0.3;
+  pointer-events: none;
+  position: relative;
+}
+.pillar-preview-hidden::after {
+  content: '🔒 Nicht freigegeben';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 0.85rem;
+  color: var(--muted);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+/* ── Send Modal Wide ─────────────────────────────────────────────────────── */
+.modal-box-wide {
+  max-width: 540px;
+}
+.modal-sub {
+  color: var(--muted);
+  font-size: 0.88rem;
+  margin-bottom: 16px;
+}
+.send-pillar-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.send-pillar-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg3);
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+.send-pillar-item.send-pillar-checked {
+  border-color: var(--success);
+  background: rgba(16,185,129,0.07);
+}
+.send-pillar-item input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--success);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.send-pillar-icon {
+  font-size: 1.3rem;
+  flex-shrink: 0;
+}
+.send-pillar-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.send-pillar-info strong {
+  font-size: 0.88rem;
+  color: var(--white);
+}
+.send-pillar-info small {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+.send-pillar-badge {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 20px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.send-pillar-badge.badge-active {
+  background: rgba(16,185,129,0.15);
+  color: var(--success);
+  border: 1px solid rgba(16,185,129,0.3);
+}
+.send-pillar-badge.badge-locked {
+  background: rgba(148,163,184,0.1);
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+.modal-info-box {
+  background: rgba(6,182,212,0.08);
+  border: 1px solid rgba(6,182,212,0.2);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 0.8rem;
+  color: var(--accent);
+  margin-bottom: 16px;
+}

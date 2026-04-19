@@ -27,10 +27,48 @@
   </div>
   <div class="plan-actions">
     <button id="btn-save" class="btn-secondary" onclick="savePlan()">💾 Speichern</button>
-    <a href="/plan/{{ plan.id }}/pdf" class="btn-secondary">⬇️ PDF</a>
-    <button id="btn-send" class="btn-primary" onclick="sendPlan()">
+    <a id="btn-pdf" href="/plan/{{ plan.id }}/pdf" class="btn-secondary" onclick="updatePdfLink(event)">⬇️ PDF</a>
+    <button id="btn-send" class="btn-primary" onclick="openSendModal()">
       📧 An {{ client.email }} senden
     </button>
+  </div>
+</div>
+
+<!-- Säulen-Selektion Panel -->
+<div class="pillar-select-panel">
+  <div class="pillar-select-header">
+    <span class="pillar-select-title">🏛️ Welche Säulen erhält der Kunde?</span>
+    <span class="pillar-select-hint">Wähle aus, was du jetzt freigibst — du kannst weitere Säulen später hinzufügen.</span>
+  </div>
+  <div class="pillar-select-grid">
+    {% set available_pillars = [] %}
+    {% if content.training %}{% set _ = available_pillars.append('training') %}{% endif %}
+    {% if content.nutrition %}{% set _ = available_pillars.append('nutrition') %}{% endif %}
+    {% if content.stress %}{% set _ = available_pillars.append('stress') %}{% endif %}
+    {% if content.sleep %}{% set _ = available_pillars.append('sleep') %}{% endif %}
+
+    {% set pillar_meta = [
+      ('training',  '💪', 'Training',          'Trainingsplan'),
+      ('nutrition', '🥗', 'Ernährung',          'Ernährungsplan'),
+      ('stress',    '🧘', 'Stressmanagement',   'Stress & Routine'),
+      ('sleep',     '😴', 'Schlafoptimierung',  'Schlafplan'),
+    ] %}
+
+    {% for key, icon, label, desc in pillar_meta %}
+    {% if key in available_pillars %}
+    <label class="pillar-toggle-card" data-pillar="{{ key }}">
+      <input type="checkbox" class="pillar-send-cb" value="{{ key }}" checked>
+      <div class="pillar-toggle-inner">
+        <span class="pillar-toggle-icon">{{ icon }}</span>
+        <div class="pillar-toggle-text">
+          <strong>{{ label }}</strong>
+          <small>{{ desc }}</small>
+        </div>
+        <span class="pillar-toggle-status status-active">✅ Freigegeben</span>
+      </div>
+    </label>
+    {% endif %}
+    {% endfor %}
   </div>
 </div>
 
@@ -128,7 +166,7 @@
                     <td class="editable" contenteditable="true">{{ ex.name }}</td>
                     <td class="editable" contenteditable="true">{{ ex.sets }}</td>
                     <td class="editable" contenteditable="true">{{ ex.reps }}</td>
-                    <td class="editable col-tempo" contenteditable="true" title="Format: 4.1.2.0 (Exzentrisch.Pause-unten.Konzentrisch.Pause-oben, X=explosiv)">{{ ex.tempo or '' }}</td>
+                    <td class="editable col-tempo" contenteditable="true" title="Format: 4-1-2-0 (Exzentrisch-Pause-unten-Konzentrisch-Pause-oben, X=explosiv)">{{ ex.tempo or '' }}</td>
                     <td class="editable col-rest" contenteditable="true">{{ ex.rest or '' }}</td>
                     <td class="editable" contenteditable="true">{{ ex.note or '' }}</td>
                     <td class="col-actions">
@@ -460,6 +498,24 @@
 
 </div>
 
+<!-- Send Modal mit Säulen-Selektion -->
+<div id="send-modal" class="modal hidden">
+  <div class="modal-box modal-box-wide">
+    <h3>📧 Plan senden an {{ client.email }}</h3>
+    <p class="modal-sub">Wähle welche Säulen der Kunde in dieser E-Mail erhält:</p>
+    <div class="send-pillar-grid" id="send-pillar-grid">
+      <!-- Dynamisch befüllt via JS aus Pillar-Panel -->
+    </div>
+    <div class="modal-info-box">
+      <span>💡 Du kannst später weitere Säulen freigeben. Der Plan bleibt intern vollständig.</span>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-primary" onclick="confirmSendPlan()">📧 Jetzt senden</button>
+      <button class="btn-secondary" onclick="closeModal()">Abbrechen</button>
+    </div>
+  </div>
+</div>
+
 <!-- Meal Replace Modal -->
 <div id="meal-replace-modal" class="modal hidden">
   <div class="modal-box">
@@ -532,19 +588,122 @@ async function savePlan(silent = false) {
   }
 }
 
-// ── Send Plan ─────────────────────────────────────────────────────────────────
-async function sendPlan() {
-  if (!confirm('Plan jetzt per E-Mail senden?')) return;
+// ── PDF Link mit Pillar-Filter aktualisieren ───────────────────────────────────────
+function updatePdfLink(e) {
+  const checkboxes = document.querySelectorAll('.pillar-send-cb:checked');
+  const selected = Array.from(checkboxes).map(cb => cb.value);
+  if (selected.length > 0) {
+    const link = document.getElementById('btn-pdf');
+    link.href = `/plan/${PLAN_ID}/pdf?pillars=${selected.join(',')}`;
+  }
+  // Allow default navigation
+}
+
+// ── Säulen-Selektion: Checkbox-Status aktualisieren ────────────────────────────
+document.querySelectorAll('.pillar-send-cb').forEach(cb => {
+  cb.addEventListener('change', function() {
+    const card = this.closest('.pillar-toggle-card');
+    const statusEl = card.querySelector('.pillar-toggle-status');
+    if (this.checked) {
+      card.classList.remove('pillar-locked');
+      statusEl.textContent = '✅ Freigegeben';
+      statusEl.className = 'pillar-toggle-status status-active';
+    } else {
+      card.classList.add('pillar-locked');
+      statusEl.textContent = '🔒 Gesperrt';
+      statusEl.className = 'pillar-toggle-status status-locked';
+    }
+    // Sync visibility in plan editor
+    syncPillarVisibility();
+  });
+});
+
+function syncPillarVisibility() {
+  const pillars = ['training', 'nutrition', 'stress', 'sleep'];
+  pillars.forEach(p => {
+    const cb = document.querySelector(`.pillar-send-cb[value="${p}"]`);
+    const section = document.querySelector(`.${p}-section`);
+    if (section) {
+      if (cb && !cb.checked) {
+        section.classList.add('pillar-preview-hidden');
+      } else {
+        section.classList.remove('pillar-preview-hidden');
+      }
+    }
+  });
+}
+
+// ── Send Plan Modal ───────────────────────────────────────────────────────────
+function openSendModal() {
+  // Build send modal pillar list from current checkboxes
+  const grid = document.getElementById('send-pillar-grid');
+  grid.innerHTML = '';
+  const pillarMeta = {
+    training:  { icon: '💪', label: 'Training',         desc: 'Trainingsplan' },
+    nutrition: { icon: '🥗', label: 'Ernährung',         desc: 'Ernährungsplan' },
+    stress:    { icon: '🧘', label: 'Stressmanagement', desc: 'Stress & Routine' },
+    sleep:     { icon: '😴', label: 'Schlafoptimierung', desc: 'Schlafplan' },
+  };
+  document.querySelectorAll('.pillar-send-cb').forEach(cb => {
+    const key = cb.value;
+    const meta = pillarMeta[key] || {};
+    const checked = cb.checked;
+    const div = document.createElement('label');
+    div.className = 'send-pillar-item' + (checked ? ' send-pillar-checked' : '');
+    div.innerHTML = `
+      <input type="checkbox" class="send-modal-cb" value="${key}" ${checked ? 'checked' : ''}>
+      <span class="send-pillar-icon">${meta.icon || ''}</span>
+      <div class="send-pillar-info">
+        <strong>${meta.label || key}</strong>
+        <small>${meta.desc || ''}</small>
+      </div>
+      <span class="send-pillar-badge ${checked ? 'badge-active' : 'badge-locked'}">${checked ? '✅ Freigegeben' : '🔒 Gesperrt'}</span>
+    `;
+    div.querySelector('input').addEventListener('change', function() {
+      div.classList.toggle('send-pillar-checked', this.checked);
+      div.querySelector('.send-pillar-badge').textContent = this.checked ? '✅ Freigegeben' : '🔒 Gesperrt';
+      div.querySelector('.send-pillar-badge').className = 'send-pillar-badge ' + (this.checked ? 'badge-active' : 'badge-locked');
+    });
+    grid.appendChild(div);
+  });
+  document.getElementById('send-modal').classList.remove('hidden');
+}
+
+async function confirmSendPlan() {
+  // Collect selected pillars from modal
+  const selectedPillars = Array.from(
+    document.querySelectorAll('#send-pillar-grid .send-modal-cb:checked')
+  ).map(cb => cb.value);
+
+  if (selectedPillars.length === 0) {
+    showToast('⚠️ Bitte mindestens eine Säule auswählen', 'error');
+    return;
+  }
+
+  closeModal();
   await savePlan();
   showLoading('Plan wird gesendet…');
   try {
-    const res = await fetch(`/plan/${PLAN_ID}/send`, { method: 'POST' });
+    const res = await fetch(`/plan/${PLAN_ID}/send`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ pillars: selectedPillars })
+    });
     const data = await res.json();
     hideLoading();
     if (data.success) {
       showToast('✅ ' + data.message, 'success');
       document.querySelector('.status-badge').textContent = '✅ Gesendet';
       document.querySelector('.status-badge').className = 'status-badge status-sent';
+      // Update pillar panel status
+      document.querySelectorAll('.pillar-send-cb').forEach(cb => {
+        const card = cb.closest('.pillar-toggle-card');
+        const statusEl = card.querySelector('.pillar-toggle-status');
+        if (selectedPillars.includes(cb.value)) {
+          statusEl.textContent = '✅ Gesendet';
+          statusEl.className = 'pillar-toggle-status status-sent';
+        }
+      });
     } else if (data.smtp_not_configured) {
       showToast('⚠️ SMTP nicht konfiguriert. Bitte SMTP_USER und SMTP_PASS setzen.', 'error');
     } else {
@@ -564,7 +723,7 @@ function addRow(btn) {
     <td class="editable" contenteditable="true">Neue Übung</td>
     <td class="editable" contenteditable="true">3</td>
     <td class="editable" contenteditable="true">8-12</td>
-    <td class="editable col-tempo" contenteditable="true" title="Format: 4.1.2.0">3.1.2.0</td>
+    <td class="editable col-tempo" contenteditable="true" title="Format: 4-1-2-0 (Exzentrisch-Pause-unten-Konzentrisch-Pause-oben, X=explosiv)">3-1-2-0</td>
     <td class="editable col-rest" contenteditable="true">90 sek</td>
     <td class="editable" contenteditable="true"></td>
     <td class="col-actions"><button class="btn-row-delete" onclick="deleteRow(this)" title="Zeile löschen">×</button></td>
@@ -627,6 +786,8 @@ async function confirmReplaceMeal() {
 
 function closeModal() {
   document.getElementById('meal-replace-modal').classList.add('hidden');
+  const sendModal = document.getElementById('send-modal');
+  if (sendModal) sendModal.classList.add('hidden');
 }
 
 // ── Extract editable content back to JSON ─────────────────────────────────────

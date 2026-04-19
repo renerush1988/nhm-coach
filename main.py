@@ -288,14 +288,25 @@ async def save_plan(request: Request, plan_id: int):
 # ── PDF Download ──────────────────────────────────────────────────────────────
 
 @app.get("/plan/{plan_id}/pdf")
-async def download_pdf(request: Request, plan_id: int):
+async def download_pdf(request: Request, plan_id: int, pillars: str = ""):
     if not is_authenticated(request):
         return RedirectResponse("/login", status_code=302)
     plan = get_plan(plan_id)
     if not plan:
         raise HTTPException(status_code=404, detail="Plan not found")
     client = get_client(plan["client_id"])
-    pdf_bytes = generate_pdf(client, plan["content"])
+
+    # Optional pillars filter via query param: ?pillars=training,nutrition
+    plan_content = plan["content"]
+    client_for_pdf = dict(client)
+    if pillars:
+        selected = [p.strip() for p in pillars.split(',') if p.strip()]
+        plan_content = {k: v for k, v in plan_content.items()
+                        if k not in ('training', 'nutrition', 'stress', 'sleep')
+                        or k in selected}
+        client_for_pdf["pillars"] = selected
+
+    pdf_bytes = generate_pdf(client_for_pdf, plan_content)
     filename = f"NHM_Plan_{client['name'].replace(' ', '_')}_v{plan['version']}.pdf"
     return Response(
         content=pdf_bytes,
@@ -315,11 +326,34 @@ async def send_plan(request: Request, plan_id: int):
         return JSONResponse({"error": "Plan not found"}, status_code=404)
     client = get_client(plan["client_id"])
 
+    # Parse optional pillars filter from request body
+    selected_pillars = None
     try:
-        pdf_bytes = generate_pdf(client, plan["content"])
+        body = await request.json()
+        selected_pillars = body.get("pillars")  # list like ['training', 'nutrition']
+    except Exception:
+        pass  # No body or not JSON → send all pillars
+
+    try:
+        # Build filtered content for PDF if pillars specified
+        plan_content = plan["content"]
+        if selected_pillars:
+            filtered_content = {k: v for k, v in plan_content.items()
+                                if k not in ('training', 'nutrition', 'stress', 'sleep')
+                                or k in selected_pillars}
+        else:
+            filtered_content = plan_content
+
+        # Build a filtered client dict with only selected pillars
+        client_for_pdf = dict(client)
+        if selected_pillars:
+            client_for_pdf["pillars"] = selected_pillars
+
+        pdf_bytes = generate_pdf(client_for_pdf, filtered_content)
         send_plan_email(client, pdf_bytes, plan["version"])
         mark_plan_sent(plan_id)
-        return JSONResponse({"success": True, "message": f"Plan erfolgreich an {client['email']} gesendet."})
+        pillars_label = ', '.join(selected_pillars) if selected_pillars else 'alle Säulen'
+        return JSONResponse({"success": True, "message": f"Plan ({pillars_label}) erfolgreich an {client['email']} gesendet."})
     except ValueError as e:
         return JSONResponse({"error": str(e), "smtp_not_configured": True}, status_code=400)
     except Exception as e:
