@@ -23,6 +23,7 @@
     <span class="status-badge status-{{ plan.status }}">
       {{ 'Entwurf' if plan.status == 'draft' else '✅ Gesendet am ' + plan.sent_at[:10] }}
     </span>
+    <span id="autosave-indicator" class="autosave-indicator" style="display:none;">💾 Speichert…</span>
   </div>
   <div class="plan-actions">
     <button id="btn-save" class="btn-secondary" onclick="savePlan()">💾 Speichern</button>
@@ -57,34 +58,88 @@
     <div class="section-body">
       <p class="editable overview-text" data-field="training.overview" contenteditable="true">{{ content.training.overview }}</p>
 
+      <!-- Training Concept -->
+      {% if content.training.training_concept %}
+      <div class="training-concept-box">
+        <div class="concept-header">
+          <span class="concept-icon">🧠</span>
+          <h3 class="editable" data-field="training.training_concept.title" contenteditable="true">{{ content.training.training_concept.title }}</h3>
+        </div>
+        <div class="concept-body">
+          <div class="concept-item">
+            <h4>Warum dieser Plan?</h4>
+            <p class="editable" data-field="training.training_concept.why_this_plan" contenteditable="true">{{ content.training.training_concept.why_this_plan }}</p>
+          </div>
+          <div class="concept-item">
+            <h4>Warum diese Übungen?</h4>
+            <p class="editable" data-field="training.training_concept.why_these_exercises" contenteditable="true">{{ content.training.training_concept.why_these_exercises }}</p>
+          </div>
+          <div class="concept-item">
+            <h4>Warum dieses Tempo?</h4>
+            <p class="editable" data-field="training.training_concept.why_this_tempo" contenteditable="true">{{ content.training.training_concept.why_this_tempo }}</p>
+          </div>
+          <div class="concept-item">
+            <h4>Progression</h4>
+            <p class="editable" data-field="training.training_concept.progression" contenteditable="true">{{ content.training.training_concept.progression }}</p>
+          </div>
+          {% if content.training.training_concept.key_principles %}
+          <div class="concept-item">
+            <h4>Schlüsselprinzipien</h4>
+            <ul class="concept-principles">
+              {% for p in content.training.training_concept.key_principles %}
+              <li class="editable" contenteditable="true">{{ p }}</li>
+              {% endfor %}
+            </ul>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
+
       {% if content.training.weeks %}
       <div class="weeks-container">
         {% for week in content.training.weeks %}
-        <div class="week-block">
+        <div class="week-block" data-week-idx="{{ loop.index0 }}">
           <h3 class="week-title editable" data-field="training.weeks.{{ loop.index0 }}.label" contenteditable="true">{{ week.label }}</h3>
           {% for session in week.sessions %}
-          <div class="session-block">
+          <div class="session-block" data-session-idx="{{ loop.index0 }}">
             <div class="session-header">
               <span class="session-day editable" data-field="training.weeks.{{ loop.index0 }}.sessions.{{ loop.index0 }}.day" contenteditable="true">{{ session.day }}</span>
               <span class="session-type editable" contenteditable="true">{{ session.type }}</span>
               {% if session.duration_min %}<span class="session-duration">{{ session.duration_min }} min</span>{% endif %}
             </div>
             {% if session.exercises %}
-            <table class="exercise-table">
-              <thead>
-                <tr><th>Übung</th><th>Sätze</th><th>Wdh.</th><th>Hinweis</th></tr>
-              </thead>
-              <tbody>
-                {% for ex in session.exercises %}
-                <tr>
-                  <td class="editable" contenteditable="true">{{ ex.name }}</td>
-                  <td class="editable" contenteditable="true">{{ ex.sets }}</td>
-                  <td class="editable" contenteditable="true">{{ ex.reps }}</td>
-                  <td class="editable" contenteditable="true">{{ ex.note or '' }}</td>
-                </tr>
-                {% endfor %}
-              </tbody>
-            </table>
+            <div class="exercise-table-wrapper">
+              <table class="exercise-table">
+                <thead>
+                  <tr>
+                    <th>Übung</th>
+                    <th>Sätze</th>
+                    <th>Wdh.</th>
+                    <th class="col-tempo">Tempo</th>
+                    <th class="col-rest">Pause</th>
+                    <th>Hinweis</th>
+                    <th class="col-actions"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for ex in session.exercises %}
+                  <tr>
+                    <td class="editable" contenteditable="true">{{ ex.name }}</td>
+                    <td class="editable" contenteditable="true">{{ ex.sets }}</td>
+                    <td class="editable" contenteditable="true">{{ ex.reps }}</td>
+                    <td class="editable col-tempo" contenteditable="true" title="Format: 4.1.2.0 (Exzentrisch.Pause-unten.Konzentrisch.Pause-oben, X=explosiv)">{{ ex.tempo or '' }}</td>
+                    <td class="editable col-rest" contenteditable="true">{{ ex.rest or '' }}</td>
+                    <td class="editable" contenteditable="true">{{ ex.note or '' }}</td>
+                    <td class="col-actions">
+                      <button class="btn-row-delete" onclick="deleteRow(this)" title="Zeile löschen">×</button>
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+              <button class="btn-add-row" onclick="addRow(this)">+ Übung hinzufügen</button>
+            </div>
             {% endif %}
           </div>
           {% endfor %}
@@ -103,7 +158,7 @@
   </div>
   {% endif %}
 
-  <!-- Nutrition -->
+  <!-- Nutrition (Carb Cycling) -->
   {% if content.nutrition %}
   <div class="plan-section pillar-section nutrition-section">
     <div class="pillar-header nutrition-header">
@@ -113,35 +168,140 @@
     <div class="section-body">
       <p class="editable overview-text" contenteditable="true">{{ content.nutrition.overview }}</p>
 
-      {% if content.nutrition.daily_calories or content.nutrition.macros %}
-      <div class="macros-bar">
-        {% if content.nutrition.daily_calories %}
-        <div class="macro-item">
-          <span class="macro-label">Kalorien</span>
-          <span class="macro-value editable" contenteditable="true">{{ content.nutrition.daily_calories }}</span>
-          <span class="macro-unit">kcal</span>
-        </div>
-        {% endif %}
-        {% if content.nutrition.macros %}
-        <div class="macro-item">
-          <span class="macro-label">Protein</span>
-          <span class="macro-value editable" contenteditable="true">{{ content.nutrition.macros.protein_g }}</span>
-          <span class="macro-unit">g</span>
-        </div>
-        <div class="macro-item">
-          <span class="macro-label">Kohlenhydrate</span>
-          <span class="macro-value editable" contenteditable="true">{{ content.nutrition.macros.carbs_g }}</span>
-          <span class="macro-unit">g</span>
-        </div>
-        <div class="macro-item">
-          <span class="macro-label">Fett</span>
-          <span class="macro-value editable" contenteditable="true">{{ content.nutrition.macros.fat_g }}</span>
-          <span class="macro-unit">g</span>
-        </div>
-        {% endif %}
-      </div>
-      {% endif %}
+      {% if content.nutrition.approach == 'carb_cycling' %}
+      <!-- Carb Cycling Layout -->
+      <div class="carb-cycling-container">
 
+        <!-- Workout Day -->
+        {% if content.nutrition.workout_day %}
+        <div class="meal-day-block workout-day-block">
+          <div class="meal-day-header">
+            <h3 class="meal-day-title">🏋️ Trainingstag</h3>
+            {% if content.nutrition.workout_day.macro_ratio %}
+            <span class="macro-ratio-badge">{{ content.nutrition.workout_day.macro_ratio }}</span>
+            {% endif %}
+          </div>
+          {% if content.nutrition.workout_day.calories or content.nutrition.workout_day.protein_g %}
+          <div class="macros-bar">
+            {% if content.nutrition.workout_day.calories %}
+            <div class="macro-item">
+              <span class="macro-label">Kalorien</span>
+              <span class="macro-value editable" contenteditable="true">{{ content.nutrition.workout_day.calories }}</span>
+              <span class="macro-unit">kcal</span>
+            </div>
+            {% endif %}
+            {% if content.nutrition.workout_day.protein_g %}
+            <div class="macro-item">
+              <span class="macro-label">Protein</span>
+              <span class="macro-value editable" contenteditable="true">{{ content.nutrition.workout_day.protein_g }}</span>
+              <span class="macro-unit">g</span>
+            </div>
+            {% endif %}
+            {% if content.nutrition.workout_day.carbs_g %}
+            <div class="macro-item">
+              <span class="macro-label">Kohlenhydrate</span>
+              <span class="macro-value editable" contenteditable="true">{{ content.nutrition.workout_day.carbs_g }}</span>
+              <span class="macro-unit">g</span>
+            </div>
+            {% endif %}
+            {% if content.nutrition.workout_day.fat_g %}
+            <div class="macro-item">
+              <span class="macro-label">Fett</span>
+              <span class="macro-value editable" contenteditable="true">{{ content.nutrition.workout_day.fat_g }}</span>
+              <span class="macro-unit">g</span>
+            </div>
+            {% endif %}
+          </div>
+          {% endif %}
+          {% for meal in content.nutrition.workout_day.meals %}
+          <div class="meal-row">
+            <div class="meal-time editable" contenteditable="true">{{ meal.time }}</div>
+            <div class="meal-info">
+              <div class="meal-name editable" contenteditable="true">{{ meal.name }}</div>
+              <div class="meal-desc editable" contenteditable="true">{{ meal.description }}</div>
+            </div>
+            <div class="meal-macros">
+              {% if meal.calories %}<span class="editable" contenteditable="true">{{ meal.calories }}</span> kcal{% endif %}
+              {% if meal.protein_g %} | <span class="editable" contenteditable="true">{{ meal.protein_g }}</span>g P{% endif %}
+              {% if meal.carbs_g %} | <span class="editable" contenteditable="true">{{ meal.carbs_g }}</span>g K{% endif %}
+              {% if meal.fat_g %} | <span class="editable" contenteditable="true">{{ meal.fat_g }}</span>g F{% endif %}
+            </div>
+            <button class="btn-replace-meal btn-xs"
+                    data-day-type="Trainingstag"
+                    data-meal-name="{{ meal.name }}"
+                    onclick="replaceMeal(this)">🔄</button>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Rest Day -->
+        {% if content.nutrition.rest_day %}
+        <div class="meal-day-block rest-day-block">
+          <div class="meal-day-header">
+            <h3 class="meal-day-title">😴 Ruhetag</h3>
+            {% if content.nutrition.rest_day.macro_ratio %}
+            <span class="macro-ratio-badge macro-ratio-rest">{{ content.nutrition.rest_day.macro_ratio }}</span>
+            {% endif %}
+          </div>
+          {% if content.nutrition.rest_day.calories or content.nutrition.rest_day.protein_g %}
+          <div class="macros-bar">
+            {% if content.nutrition.rest_day.calories %}
+            <div class="macro-item">
+              <span class="macro-label">Kalorien</span>
+              <span class="macro-value editable" contenteditable="true">{{ content.nutrition.rest_day.calories }}</span>
+              <span class="macro-unit">kcal</span>
+            </div>
+            {% endif %}
+            {% if content.nutrition.rest_day.protein_g %}
+            <div class="macro-item">
+              <span class="macro-label">Protein</span>
+              <span class="macro-value editable" contenteditable="true">{{ content.nutrition.rest_day.protein_g }}</span>
+              <span class="macro-unit">g</span>
+            </div>
+            {% endif %}
+            {% if content.nutrition.rest_day.carbs_g %}
+            <div class="macro-item">
+              <span class="macro-label">Kohlenhydrate</span>
+              <span class="macro-value editable" contenteditable="true">{{ content.nutrition.rest_day.carbs_g }}</span>
+              <span class="macro-unit">g</span>
+            </div>
+            {% endif %}
+            {% if content.nutrition.rest_day.fat_g %}
+            <div class="macro-item">
+              <span class="macro-label">Fett</span>
+              <span class="macro-value editable" contenteditable="true">{{ content.nutrition.rest_day.fat_g }}</span>
+              <span class="macro-unit">g</span>
+            </div>
+            {% endif %}
+          </div>
+          {% endif %}
+          {% for meal in content.nutrition.rest_day.meals %}
+          <div class="meal-row">
+            <div class="meal-time editable" contenteditable="true">{{ meal.time }}</div>
+            <div class="meal-info">
+              <div class="meal-name editable" contenteditable="true">{{ meal.name }}</div>
+              <div class="meal-desc editable" contenteditable="true">{{ meal.description }}</div>
+            </div>
+            <div class="meal-macros">
+              {% if meal.calories %}<span class="editable" contenteditable="true">{{ meal.calories }}</span> kcal{% endif %}
+              {% if meal.protein_g %} | <span class="editable" contenteditable="true">{{ meal.protein_g }}</span>g P{% endif %}
+              {% if meal.carbs_g %} | <span class="editable" contenteditable="true">{{ meal.carbs_g }}</span>g K{% endif %}
+              {% if meal.fat_g %} | <span class="editable" contenteditable="true">{{ meal.fat_g }}</span>g F{% endif %}
+            </div>
+            <button class="btn-replace-meal btn-xs"
+                    data-day-type="Ruhetag"
+                    data-meal-name="{{ meal.name }}"
+                    onclick="replaceMeal(this)">🔄</button>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+      </div><!-- end carb-cycling-container -->
+
+      {% else %}
+      <!-- Legacy meal_plan layout (fallback for old plans) -->
       {% for day_type in content.nutrition.meal_plan %}
       <div class="meal-day-block">
         <h3 class="meal-day-title">{{ day_type.day_type }}</h3>
@@ -156,7 +316,7 @@
             {% if meal.calories %}<span class="editable" contenteditable="true">{{ meal.calories }}</span> kcal{% endif %}
             {% if meal.protein_g %} | <span class="editable" contenteditable="true">{{ meal.protein_g }}</span>g P{% endif %}
           </div>
-          <button class="btn-replace-meal btn-xs" 
+          <button class="btn-replace-meal btn-xs"
                   data-day-type="{{ day_type.day_type }}"
                   data-meal-name="{{ meal.name }}"
                   onclick="replaceMeal(this)">🔄</button>
@@ -164,6 +324,7 @@
         {% endfor %}
       </div>
       {% endfor %}
+      {% endif %}
 
       {% if content.nutrition.supplements %}
       <div class="tips-box">
@@ -320,9 +481,33 @@
 <script>
 const PLAN_ID = {{ plan.id }};
 let currentMealBtn = null;
+let autoSaveTimer = null;
+let isSaving = false;
+
+// ── Auto-Save (debounced, 2 seconds after last edit) ──────────────────────────
+function scheduleAutoSave() {
+  clearTimeout(autoSaveTimer);
+  const indicator = document.getElementById('autosave-indicator');
+  if (indicator) indicator.style.display = 'inline';
+  autoSaveTimer = setTimeout(async () => {
+    if (!isSaving) {
+      await savePlan(true); // silent = true
+    }
+  }, 2000);
+}
+
+// Listen for all contenteditable changes
+document.addEventListener('input', (e) => {
+  if (e.target.hasAttribute('contenteditable')) {
+    scheduleAutoSave();
+  }
+});
 
 // ── Save Plan ─────────────────────────────────────────────────────────────────
-async function savePlan() {
+async function savePlan(silent = false) {
+  if (isSaving) return;
+  isSaving = true;
+  const indicator = document.getElementById('autosave-indicator');
   const content = extractContent();
   try {
     const res = await fetch(`/plan/${PLAN_ID}/save`, {
@@ -331,10 +516,19 @@ async function savePlan() {
       body: JSON.stringify({content})
     });
     const data = await res.json();
-    if (data.success) showToast('✅ Plan gespeichert', 'success');
-    else showToast('Fehler beim Speichern', 'error');
+    if (data.success) {
+      if (!silent) showToast('✅ Plan gespeichert', 'success');
+      // Reset save button
+      const btn = document.getElementById('btn-save');
+      if (btn) btn.textContent = '💾 Speichern';
+    } else {
+      if (!silent) showToast('Fehler beim Speichern', 'error');
+    }
   } catch(e) {
-    showToast('Verbindungsfehler', 'error');
+    if (!silent) showToast('Verbindungsfehler', 'error');
+  } finally {
+    isSaving = false;
+    if (indicator) indicator.style.display = 'none';
   }
 }
 
@@ -360,6 +554,35 @@ async function sendPlan() {
     hideLoading();
     showToast('Verbindungsfehler', 'error');
   }
+}
+
+// ── Add / Delete Exercise Rows ────────────────────────────────────────────────
+function addRow(btn) {
+  const tbody = btn.closest('.exercise-table-wrapper').querySelector('tbody');
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td class="editable" contenteditable="true">Neue Übung</td>
+    <td class="editable" contenteditable="true">3</td>
+    <td class="editable" contenteditable="true">8-12</td>
+    <td class="editable col-tempo" contenteditable="true" title="Format: 4.1.2.0">3.1.2.0</td>
+    <td class="editable col-rest" contenteditable="true">90 sek</td>
+    <td class="editable" contenteditable="true"></td>
+    <td class="col-actions"><button class="btn-row-delete" onclick="deleteRow(this)" title="Zeile löschen">×</button></td>
+  `;
+  tbody.appendChild(tr);
+  // Focus the name cell
+  tr.querySelector('td').focus();
+  scheduleAutoSave();
+}
+
+function deleteRow(btn) {
+  const tr = btn.closest('tr');
+  if (tr.closest('tbody').querySelectorAll('tr').length <= 1) {
+    showToast('Mindestens eine Übung muss vorhanden sein', 'error');
+    return;
+  }
+  tr.remove();
+  scheduleAutoSave();
 }
 
 // ── Meal Replace ──────────────────────────────────────────────────────────────
@@ -408,52 +631,125 @@ function closeModal() {
 
 // ── Extract editable content back to JSON ─────────────────────────────────────
 function extractContent() {
-  // Re-read the original JSON and overlay with edited contenteditable values
-  // For simplicity: collect all editable text and rebuild the structure
-  // The plan content is stored server-side; we send the full updated content
-  const original = {{ content_json | safe }};
-  
-  // Summary
+  // Deep clone original JSON
+  const original = JSON.parse(JSON.stringify({{ content_json | safe }}));
+
+  // ── Summary ──
   const summaryEl = document.querySelector('[data-field="summary"]');
   if (summaryEl) original.summary = summaryEl.textContent.trim();
 
-  // Training overview
-  const tOverview = document.querySelector('[data-field="training.overview"]');
-  if (tOverview && original.training) original.training.overview = tOverview.textContent.trim();
+  // ── Training ──
+  if (original.training) {
+    const tOverview = document.querySelector('[data-field="training.overview"]');
+    if (tOverview) original.training.overview = tOverview.textContent.trim();
 
-  // Nutrition overview
-  const nOverview = document.querySelector('[data-field="nutrition.overview"]');
-  if (nOverview && original.nutrition) original.nutrition.overview = nOverview.textContent.trim();
-
-  // Exercise tables
-  if (original.training && original.training.weeks) {
-    document.querySelectorAll('.exercise-table tbody').forEach((tbody, wi) => {
-      const week = original.training.weeks[wi];
-      if (!week) return;
-      tbody.querySelectorAll('tr').forEach((tr, ei) => {
-        const session = week.sessions[0]; // simplified
-        if (!session || !session.exercises[ei]) return;
-        const cells = tr.querySelectorAll('td');
-        if (cells[0]) session.exercises[ei].name = cells[0].textContent.trim();
-        if (cells[1]) session.exercises[ei].sets = cells[1].textContent.trim();
-        if (cells[2]) session.exercises[ei].reps = cells[2].textContent.trim();
-        if (cells[3]) session.exercises[ei].note = cells[3].textContent.trim();
+    // Training concept fields
+    if (original.training.training_concept) {
+      const tc = original.training.training_concept;
+      const fields = ['title', 'why_this_plan', 'why_these_exercises', 'why_this_tempo', 'progression'];
+      fields.forEach(f => {
+        const el = document.querySelector(`[data-field="training.training_concept.${f}"]`);
+        if (el) tc[f] = el.textContent.trim();
       });
-    });
+      // Key principles from list items
+      const principleItems = document.querySelectorAll('.concept-principles li');
+      if (principleItems.length > 0) {
+        tc.key_principles = Array.from(principleItems).map(li => li.textContent.trim());
+      }
+    }
+
+    // Week labels
+    if (original.training.weeks) {
+      document.querySelectorAll('.week-block').forEach((weekEl, wi) => {
+        const week = original.training.weeks[wi];
+        if (!week) return;
+        const labelEl = weekEl.querySelector('.week-title');
+        if (labelEl) week.label = labelEl.textContent.trim();
+
+        // Sessions within this week
+        weekEl.querySelectorAll('.session-block').forEach((sessionEl, si) => {
+          const session = week.sessions[si];
+          if (!session) return;
+
+          // Session header fields
+          const dayEl = sessionEl.querySelector('.session-day');
+          if (dayEl) session.day = dayEl.textContent.trim();
+          const typeEl = sessionEl.querySelector('.session-type');
+          if (typeEl) session.type = typeEl.textContent.trim();
+
+          // Exercise table rows
+          const tbody = sessionEl.querySelector('.exercise-table tbody');
+          if (tbody) {
+            const rows = tbody.querySelectorAll('tr');
+            session.exercises = Array.from(rows).map(tr => {
+              const cells = tr.querySelectorAll('td');
+              return {
+                name:  cells[0] ? cells[0].textContent.trim() : '',
+                sets:  cells[1] ? cells[1].textContent.trim() : '',
+                reps:  cells[2] ? cells[2].textContent.trim() : '',
+                tempo: cells[3] ? cells[3].textContent.trim() : '',
+                rest:  cells[4] ? cells[4].textContent.trim() : '',
+                note:  cells[5] ? cells[5].textContent.trim() : '',
+              };
+            });
+          }
+        });
+      });
+    }
   }
 
-  // Meal descriptions
-  if (original.nutrition && original.nutrition.meal_plan) {
-    document.querySelectorAll('.meal-row').forEach((row, i) => {
-      const dayIdx = Math.floor(i / (original.nutrition.meal_plan[0]?.meals?.length || 4));
-      const mealIdx = i % (original.nutrition.meal_plan[0]?.meals?.length || 4);
-      const dayData = original.nutrition.meal_plan[dayIdx];
-      if (!dayData || !dayData.meals[mealIdx]) return;
-      const nameEl = row.querySelector('.meal-name');
-      const descEl = row.querySelector('.meal-desc');
-      if (nameEl) dayData.meals[mealIdx].name = nameEl.textContent.trim();
-      if (descEl) dayData.meals[mealIdx].description = descEl.textContent.trim();
-    });
+  // ── Nutrition (Carb Cycling) ──
+  if (original.nutrition) {
+    // Overview
+    const nOverview = document.querySelector('.nutrition-section .overview-text');
+    if (nOverview) original.nutrition.overview = nOverview.textContent.trim();
+
+    if (original.nutrition.approach === 'carb_cycling') {
+      // Workout day meals
+      if (original.nutrition.workout_day) {
+        const wdBlock = document.querySelector('.workout-day-block');
+        if (wdBlock) {
+          wdBlock.querySelectorAll('.meal-row').forEach((row, i) => {
+            const meals = original.nutrition.workout_day.meals;
+            if (!meals || !meals[i]) return;
+            const nameEl = row.querySelector('.meal-name');
+            const descEl = row.querySelector('.meal-desc');
+            const timeEl = row.querySelector('.meal-time');
+            if (nameEl) meals[i].name = nameEl.textContent.trim();
+            if (descEl) meals[i].description = descEl.textContent.trim();
+            if (timeEl) meals[i].time = timeEl.textContent.trim();
+          });
+        }
+      }
+      // Rest day meals
+      if (original.nutrition.rest_day) {
+        const rdBlock = document.querySelector('.rest-day-block');
+        if (rdBlock) {
+          rdBlock.querySelectorAll('.meal-row').forEach((row, i) => {
+            const meals = original.nutrition.rest_day.meals;
+            if (!meals || !meals[i]) return;
+            const nameEl = row.querySelector('.meal-name');
+            const descEl = row.querySelector('.meal-desc');
+            const timeEl = row.querySelector('.meal-time');
+            if (nameEl) meals[i].name = nameEl.textContent.trim();
+            if (descEl) meals[i].description = descEl.textContent.trim();
+            if (timeEl) meals[i].time = timeEl.textContent.trim();
+          });
+        }
+      }
+    } else if (original.nutrition.meal_plan) {
+      // Legacy fallback
+      document.querySelectorAll('.meal-row').forEach((row, i) => {
+        const dayIdx = Math.floor(i / (original.nutrition.meal_plan[0]?.meals?.length || 4));
+        const mealIdx = i % (original.nutrition.meal_plan[0]?.meals?.length || 4);
+        const dayData = original.nutrition.meal_plan[dayIdx];
+        if (!dayData || !dayData.meals[mealIdx]) return;
+        const nameEl = row.querySelector('.meal-name');
+        const descEl = row.querySelector('.meal-desc');
+        if (nameEl) dayData.meals[mealIdx].name = nameEl.textContent.trim();
+        if (descEl) dayData.meals[mealIdx].description = descEl.textContent.trim();
+      });
+    }
   }
 
   return original;

@@ -2,6 +2,7 @@
 """
 pdf_generator.py — NHM Coach Backoffice
 Generates a professional PDF coaching plan from plan content dict.
+Supports v2 schema: training_concept, tempo/rest columns, carb-cycling nutrition.
 """
 
 import re
@@ -28,13 +29,6 @@ PILLAR_COLORS = {
     "sleep":     (59, 130, 246),
 }
 
-PILLAR_ICONS = {
-    "training":  "TRAINING",
-    "nutrition": "ERNAEHRUNG",
-    "stress":    "STRESS",
-    "sleep":     "SCHLAF",
-}
-
 NST_NAMES = {
     "lion":      {"de": "Löwe",      "en": "Lion"},
     "falcon":    {"de": "Falke",     "en": "Falcon"},
@@ -55,18 +49,16 @@ def strip_non_latin(text: str) -> str:
     """Remove characters not supported by Helvetica (Latin-1 subset)."""
     if not text:
         return ""
-    # Replace common Unicode chars with ASCII equivalents
     replacements = {
         "\u2014": "-", "\u2013": "-", "\u2019": "'", "\u2018": "'",
         "\u201c": '"', "\u201d": '"', "\u2022": "-", "\u00e4": "ae",
         "\u00f6": "oe", "\u00fc": "ue", "\u00c4": "Ae", "\u00d6": "Oe",
         "\u00dc": "Ue", "\u00df": "ss", "\u00e9": "e", "\u00e8": "e",
         "\u00e0": "a", "\u00e1": "a", "\u00f3": "o", "\u00fa": "u",
-        "\u00ed": "i", "\u2026": "...",
+        "\u00ed": "i", "\u2026": "...", "\u00b7": "-",
     }
     for orig, repl in replacements.items():
         text = text.replace(orig, repl)
-    # Remove any remaining non-latin1 chars
     return text.encode("latin-1", errors="ignore").decode("latin-1")
 
 
@@ -139,29 +131,95 @@ class CoachPDF(FPDF):
         self.cell(6, 6, "-")
         self.multi_cell(0, 6, s(text))
 
-    def info_box(self, label: str, value: str, color=None):
-        if color:
-            self.set_fill_color(*color)
-        else:
-            self.set_fill_color(240, 248, 255)
-        self.set_font("Helvetica", "B", 9)
-        self.set_text_color(10, 15, 30)
-        self.cell(50, 8, s(label) + ":", fill=True)
-        self.set_font("Helvetica", "", 9)
-        self.cell(0, 8, s(value), ln=True)
+    def concept_box(self, concept: dict, lang: str = "de"):
+        """Render the training concept explanation box."""
+        self.set_fill_color(235, 245, 255)
+        self.set_draw_color(6, 182, 212)
+        self.set_line_width(0.8)
+        # Box title
+        title = s(concept.get("title", "Trainingskonzept"))
+        self.set_font("Helvetica", "B", 11)
+        self.set_text_color(6, 182, 212)
+        self.cell(0, 8, f"  {title}", fill=True, ln=True)
+        self.set_text_color(40, 40, 40)
+
+        sections = [
+            ("why_this_plan",        "Warum dieser Plan?" if lang == "de" else "Why this plan?"),
+            ("why_these_exercises",  "Warum diese Uebungen?" if lang == "de" else "Why these exercises?"),
+            ("why_this_tempo",       "Warum dieses Tempo?" if lang == "de" else "Why this tempo?"),
+            ("progression",          "Progression"),
+        ]
+        for key, label in sections:
+            val = concept.get(key, "")
+            if val:
+                self.set_font("Helvetica", "B", 9)
+                self.set_text_color(10, 15, 30)
+                self.set_x(self.l_margin + 4)
+                self.cell(0, 6, s(label), ln=True)
+                self.set_font("Helvetica", "", 9)
+                self.set_text_color(60, 60, 60)
+                self.set_x(self.l_margin + 8)
+                self.multi_cell(0, 5, s(val))
+                self.ln(1)
+
+        principles = concept.get("key_principles", [])
+        if principles:
+            key_label = "Schluesselprinzipien:" if lang == "de" else "Key Principles:"
+            self.set_font("Helvetica", "B", 9)
+            self.set_text_color(10, 15, 30)
+            self.set_x(self.l_margin + 4)
+            self.cell(0, 6, s(key_label), ln=True)
+            for p in principles:
+                self.set_font("Helvetica", "", 9)
+                self.set_text_color(60, 60, 60)
+                self.set_x(self.l_margin + 8)
+                self.cell(5, 5, "-")
+                self.multi_cell(0, 5, s(p))
+        self.ln(4)
 
     def exercise_row(self, ex: dict):
-        name = s(ex.get("name", ""))
-        sets = str(ex.get("sets", ""))
-        reps = s(ex.get("reps", ""))
-        note = s(ex.get("note", ""))
-        self.set_font("Helvetica", "", 9)
+        """Render one exercise row with tempo and rest columns."""
+        name  = s(ex.get("name", ""))
+        sets  = str(ex.get("sets", ""))
+        reps  = s(ex.get("reps", ""))
+        tempo = s(ex.get("tempo", ""))
+        rest  = s(ex.get("rest", ""))
+        note  = s(ex.get("note", ""))
+        self.set_font("Helvetica", "", 8)
         self.set_text_color(40, 40, 40)
-        self.set_x(self.l_margin + 6)
-        self.cell(70, 6, name)
-        self.cell(20, 6, f"{sets}x")
-        self.cell(25, 6, reps)
-        self.cell(0, 6, note, ln=True)
+        self.set_x(self.l_margin + 4)
+        self.cell(52, 5, name)
+        self.cell(14, 5, f"{sets}x")
+        self.cell(18, 5, reps)
+        self.cell(22, 5, tempo)
+        self.cell(24, 5, rest)
+        self.cell(0, 5, note, ln=True)
+
+    def exercise_header_row(self, lang: str = "de"):
+        """Render the exercise table header."""
+        self.set_font("Helvetica", "B", 7)
+        self.set_text_color(100, 100, 100)
+        self.set_x(self.l_margin + 4)
+        if lang == "de":
+            self.cell(52, 5, "Uebung")
+            self.cell(14, 5, "Saetze")
+            self.cell(18, 5, "Wdh.")
+            self.cell(22, 5, "Tempo")
+            self.cell(24, 5, "Pause")
+            self.cell(0, 5, "Hinweis", ln=True)
+        else:
+            self.cell(52, 5, "Exercise")
+            self.cell(14, 5, "Sets")
+            self.cell(18, 5, "Reps")
+            self.cell(22, 5, "Tempo")
+            self.cell(24, 5, "Rest")
+            self.cell(0, 5, "Note", ln=True)
+        self.set_draw_color(200, 200, 200)
+        self.set_line_width(0.3)
+        x = self.get_x()
+        y = self.get_y()
+        self.line(self.l_margin + 4, y, self.l_margin + 170, y)
+        self.ln(1)
 
     def meal_row(self, meal: dict):
         time = s(meal.get("time", ""))
@@ -169,23 +227,48 @@ class CoachPDF(FPDF):
         desc = s(meal.get("description", ""))
         kcal = meal.get("calories", "")
         prot = meal.get("protein_g", "")
+        carbs = meal.get("carbs_g", "")
+        fat  = meal.get("fat_g", "")
         self.set_font("Helvetica", "B", 9)
         self.set_text_color(10, 15, 30)
         self.set_x(self.l_margin + 4)
         self.cell(18, 6, time)
-        self.cell(35, 6, name)
-        self.set_font("Helvetica", "", 9)
-        self.set_text_color(60, 60, 60)
-        if kcal:
-            self.cell(30, 6, f"{kcal} kcal")
-        if prot:
-            self.cell(30, 6, f"{prot}g Protein")
-        self.ln()
-        self.set_x(self.l_margin + 8)
+        self.cell(40, 6, name)
         self.set_font("Helvetica", "", 8)
-        self.set_text_color(100, 100, 100)
-        self.multi_cell(0, 5, desc)
+        self.set_text_color(60, 60, 60)
+        macro_parts = []
+        if kcal: macro_parts.append(f"{kcal} kcal")
+        if prot: macro_parts.append(f"{prot}g P")
+        if carbs: macro_parts.append(f"{carbs}g K")
+        if fat: macro_parts.append(f"{fat}g F")
+        self.cell(0, 6, "  ".join(macro_parts), ln=True)
+        if desc:
+            self.set_x(self.l_margin + 8)
+            self.set_font("Helvetica", "", 8)
+            self.set_text_color(100, 100, 100)
+            self.multi_cell(0, 5, desc)
         self.ln(1)
+
+    def macros_summary_row(self, day_data: dict, lang: str = "de"):
+        """Render a macro summary bar for a day type."""
+        cal   = day_data.get("calories", 0)
+        prot  = day_data.get("protein_g", 0)
+        carbs = day_data.get("carbs_g", 0)
+        fat   = day_data.get("fat_g", 0)
+        ratio = s(day_data.get("macro_ratio", ""))
+        self.set_fill_color(240, 255, 248)
+        self.set_font("Helvetica", "", 9)
+        self.set_text_color(10, 15, 30)
+        if lang == "de":
+            macro_str = f"Kalorien: {cal} kcal  |  Protein: {prot}g  |  Kohlenhydrate: {carbs}g  |  Fett: {fat}g"
+        else:
+            macro_str = f"Calories: {cal} kcal  |  Protein: {prot}g  |  Carbs: {carbs}g  |  Fat: {fat}g"
+        self.cell(0, 7, s(macro_str), fill=True, ln=True)
+        if ratio:
+            self.set_font("Helvetica", "I", 8)
+            self.set_text_color(80, 80, 80)
+            self.cell(0, 5, s(ratio), ln=True)
+        self.ln(2)
 
 
 def generate_pdf(client_data: dict, plan_content: dict) -> bytes:
@@ -247,15 +330,22 @@ def generate_pdf(client_data: dict, plan_content: dict) -> bytes:
     # ── Training ──────────────────────────────────────────────────────────────
     if "training" in plan_content and "training" in pillars:
         t_data = plan_content["training"]
-        label = "Training" if lang == "en" else "Training"
         pdf.add_page()
-        pdf.section_header(f"{'Training' if lang == 'en' else 'Training'}", "training")
+        pdf.section_header("Training", "training")
 
         overview = t_data.get("overview", "")
         if overview:
             pdf.body_text(overview)
             pdf.ln(2)
 
+        # Training Concept section
+        concept = t_data.get("training_concept", {})
+        if concept:
+            concept_label = "Trainingskonzept" if lang == "de" else "Training Concept"
+            pdf.sub_header(concept_label)
+            pdf.concept_box(concept, lang)
+
+        # Weeks
         weeks = t_data.get("weeks", [])
         for week in weeks:
             pdf.sub_header(s(week.get("label", f"Week {week.get('week', '')}")))
@@ -270,11 +360,7 @@ def generate_pdf(client_data: dict, plan_content: dict) -> bytes:
                 pdf.cell(0, 7, f"{day}: {stype}{dur_str}", ln=True)
                 exercises = session.get("exercises", [])
                 if exercises:
-                    pdf.set_font("Helvetica", "B", 8)
-                    pdf.set_text_color(100, 100, 100)
-                    pdf.set_x(pdf.l_margin + 6)
-                    ex_header = "Uebung                              Saetze  Wdh." if lang == "de" else "Exercise                            Sets    Reps"
-                    pdf.cell(0, 5, ex_header, ln=True)
+                    pdf.exercise_header_row(lang)
                     for ex in exercises:
                         pdf.exercise_row(ex)
                 pdf.ln(2)
@@ -285,7 +371,6 @@ def generate_pdf(client_data: dict, plan_content: dict) -> bytes:
             pdf.sub_header(tips_label)
             for tip in tips:
                 pdf.bullet(tip)
-            pdf.ln(2)
 
     # ── Nutrition ─────────────────────────────────────────────────────────────
     if "nutrition" in plan_content and "nutrition" in pillars:
@@ -299,37 +384,60 @@ def generate_pdf(client_data: dict, plan_content: dict) -> bytes:
             pdf.body_text(overview)
             pdf.ln(2)
 
-        # Macros
-        macros = n_data.get("macros", {})
-        daily_cal = n_data.get("daily_calories", "")
-        if macros or daily_cal:
-            pdf.set_fill_color(240, 255, 248)
-            pdf.set_font("Helvetica", "B", 9)
-            pdf.set_text_color(10, 15, 30)
-            kcal_label = "Tageskalorien" if lang == "de" else "Daily Calories"
-            pdf.cell(0, 7, f"{kcal_label}: {s(str(daily_cal))} kcal", fill=True, ln=True)
-            if macros:
-                macro_str = f"Protein: {macros.get('protein_g', 0)}g  |  Kohlenhydrate: {macros.get('carbs_g', 0)}g  |  Fett: {macros.get('fat_g', 0)}g"
-                if lang == "en":
-                    macro_str = f"Protein: {macros.get('protein_g', 0)}g  |  Carbs: {macros.get('carbs_g', 0)}g  |  Fat: {macros.get('fat_g', 0)}g"
-                pdf.set_font("Helvetica", "", 9)
-                pdf.cell(0, 6, s(macro_str), ln=True)
-            pdf.ln(3)
+        approach = n_data.get("approach", "")
 
-        # Meal plan
-        meal_plan = n_data.get("meal_plan", [])
-        for day_type_data in meal_plan:
-            day_type = s(day_type_data.get("day_type", ""))
-            pdf.sub_header(day_type)
-            meals = day_type_data.get("meals", [])
-            for meal in meals:
-                pdf.meal_row(meal)
-            pdf.ln(2)
+        if approach == "carb_cycling":
+            # ── Carb Cycling Layout ──
+            workout_day = n_data.get("workout_day", {})
+            rest_day = n_data.get("rest_day", {})
+
+            if workout_day:
+                wd_label = "Trainingstag" if lang == "de" else "Training Day"
+                pdf.sub_header(wd_label)
+                pdf.macros_summary_row(workout_day, lang)
+                for meal in workout_day.get("meals", []):
+                    pdf.meal_row(meal)
+                pdf.ln(3)
+
+            if rest_day:
+                rd_label = "Ruhetag" if lang == "de" else "Rest Day"
+                pdf.sub_header(rd_label)
+                pdf.macros_summary_row(rest_day, lang)
+                for meal in rest_day.get("meals", []):
+                    pdf.meal_row(meal)
+                pdf.ln(3)
+
+        else:
+            # ── Legacy meal_plan layout ──
+            macros = n_data.get("macros", {})
+            daily_cal = n_data.get("daily_calories", "")
+            if macros or daily_cal:
+                pdf.set_fill_color(240, 255, 248)
+                pdf.set_font("Helvetica", "B", 9)
+                pdf.set_text_color(10, 15, 30)
+                kcal_label = "Tageskalorien" if lang == "de" else "Daily Calories"
+                pdf.cell(0, 7, f"{kcal_label}: {s(str(daily_cal))} kcal", fill=True, ln=True)
+                if macros:
+                    macro_str = f"Protein: {macros.get('protein_g', 0)}g  |  Kohlenhydrate: {macros.get('carbs_g', 0)}g  |  Fett: {macros.get('fat_g', 0)}g"
+                    if lang == "en":
+                        macro_str = f"Protein: {macros.get('protein_g', 0)}g  |  Carbs: {macros.get('carbs_g', 0)}g  |  Fat: {macros.get('fat_g', 0)}g"
+                    pdf.set_font("Helvetica", "", 9)
+                    pdf.cell(0, 6, s(macro_str), ln=True)
+                pdf.ln(3)
+
+            meal_plan = n_data.get("meal_plan", [])
+            for day_type_data in meal_plan:
+                day_type = s(day_type_data.get("day_type", ""))
+                pdf.sub_header(day_type)
+                meals = day_type_data.get("meals", [])
+                for meal in meals:
+                    pdf.meal_row(meal)
+                pdf.ln(2)
 
         # Supplements
         supps = n_data.get("supplements", [])
         if supps:
-            supp_label = "Supplements" if lang == "en" else "Supplements"
+            supp_label = "Supplements"
             pdf.sub_header(supp_label)
             for s_item in supps:
                 pdf.bullet(s_item)
@@ -413,7 +521,6 @@ def generate_pdf(client_data: dict, plan_content: dict) -> bytes:
             pdf.body_text(overview)
             pdf.ln(2)
 
-        # Sleep times
         target = sl_data.get("target_hours", "")
         bedtime = sl_data.get("bedtime", "")
         wake = sl_data.get("wake_time", "")

@@ -859,3 +859,100 @@ a:hover { text-decoration: underline; }
   .assistant-sidebar { width: 100%; max-height: 300px; }
   .message { max-width: 95%; }
 }
+
+/* ── Training Concept Box ─────────────────────────────────────────────────── */
+.training-concept-box {
+  background: linear-gradient(135deg, rgba(6,182,212,0.06) 0%, rgba(16,185,129,0.04) 100%);
+  border: 1px solid rgba(6,182,212,0.25);
+  border-radius: 10px;
+  margin-bottom: 24px;
+  overflow: hidden;
+}
+.concept-header {
+  display: flex; align-items: center; gap: 10px;
+  background: rgba(6,182,212,0.12);
+  border-bottom: 1px solid rgba(6,182,212,0.2);
+  padding: 12px 18px;
+}
+.concept-icon { font-size: 1.3rem; }
+.concept-header h3 { font-size: 1rem; font-weight: 700; color: var(--accent); }
+.concept-body { padding: 16px 18px; display: flex; flex-direction: column; gap: 14px; }
+.concept-item h4 {
+  font-size: 0.78rem; font-weight: 700; color: var(--accent);
+  text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 5px;
+}
+.concept-item p { font-size: 0.88rem; color: var(--text); line-height: 1.65; }
+.concept-principles {
+  list-style: none; display: flex; flex-direction: column; gap: 5px;
+}
+.concept-principles li {
+  font-size: 0.85rem; color: var(--text); padding-left: 16px; position: relative;
+}
+.concept-principles li::before { content: "✓"; position: absolute; left: 0; color: var(--success); font-weight: 700; }
+
+/* ── Exercise Table: Tempo + Rest columns ─────────────────────────────────── */
+.exercise-table-wrapper { margin-bottom: 8px; }
+.exercise-table .col-tempo { width: 90px; font-family: monospace; font-size: 0.82rem; color: var(--gold); }
+.exercise-table .col-rest  { width: 90px; font-size: 0.82rem; color: var(--accent); }
+.exercise-table .col-actions { width: 36px; text-align: center; }
+.exercise-table th.col-tempo { color: var(--gold); }
+.exercise-table th.col-rest  { color: var(--accent); }
+
+/* ── Add / Delete Row Buttons ─────────────────────────────────────────────── */
+.btn-add-row {
+  display: inline-flex; align-items: center; gap: 5px;
+  margin-top: 6px; padding: 4px 12px;
+  background: rgba(16,185,129,0.1); border: 1px dashed rgba(16,185,129,0.4);
+  border-radius: 6px; color: var(--success); font-size: 0.78rem; font-weight: 600;
+  cursor: pointer; transition: all 0.2s;
+}
+.btn-add-row:hover { background: rgba(16,185,129,0.2); border-color: var(--success); }
+.btn-row-delete {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px;
+  background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3);
+  border-radius: 4px; color: var(--error); font-size: 0.9rem; font-weight: 700;
+  cursor: pointer; transition: all 0.2s; line-height: 1;
+}
+.btn-row-delete:hover { background: rgba(239,68,68,0.25); border-color: var(--error); }
+
+/* ── Auto-Save Indicator ──────────────────────────────────────────────────── */
+.autosave-indicator {
+  font-size: 0.78rem; color: var(--accent); margin-left: 10px;
+  animation: pulse 1s ease-in-out infinite;
+}
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+/* ── Carb Cycling Nutrition Layout ───────────────────────────────────────── */
+.carb-cycling-container { display: flex; flex-direction: column; gap: 24px; }
+.meal-day-header {
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 8px; margin-bottom: 12px;
+}
+.meal-day-header .meal-day-title { margin-bottom: 0; }
+.macro-ratio-badge {
+  font-size: 0.72rem; font-weight: 600;
+  background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.3);
+  color: var(--training); padding: 3px 10px; border-radius: 12px;
+}
+.macro-ratio-rest {
+  background: rgba(16,185,129,0.12); border-color: rgba(16,185,129,0.3);
+  color: var(--success);
+}
+.workout-day-block {
+  background: var(--bg3); border-radius: 10px; padding: 16px 18px;
+  border-left: 3px solid var(--training);
+}
+.rest-day-block {
+  background: var(--bg3); border-radius: 10px; padding: 16px 18px;
+  border-left: 3px solid var(--success);
+}
+
+/* ── btn-replace-meal ─────────────────────────────────────────────────────── */
+.btn-replace-meal.btn-xs {
+  padding: 3px 8px; font-size: 0.75rem;
+  background: var(--bg4); border: 1px solid var(--border);
+  border-radius: 6px; color: var(--muted); cursor: pointer;
+  transition: all 0.2s; flex-shrink: 0;
+}
+.btn-replace-meal.btn-xs:hover { background: var(--bg3); color: var(--white); }
