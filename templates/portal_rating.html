@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Bewertung – NHM Portal</title>
+<link rel="stylesheet" href="/static/css/style.css">
+<style>
+  :root { --accent:#00c8ff; --bg:#0d0f14; --card:#161a22; --border:#2a2f3d; --text:#e2e8f0; --muted:#6b7280; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--text); font-family:'Inter',-apple-system,sans-serif; min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
+  .rating-card { background:var(--card); border:1px solid var(--border); border-radius:20px; padding:36px 32px; max-width:480px; width:100%; text-align:center; }
+  .rating-icon { font-size:56px; margin-bottom:16px; }
+  .rating-title { font-size:22px; font-weight:800; margin-bottom:8px; }
+  .rating-sub { font-size:14px; color:var(--muted); margin-bottom:28px; line-height:1.5; }
+  .stars { display:flex; justify-content:center; gap:10px; margin-bottom:24px; }
+  .star { font-size:44px; cursor:pointer; transition:transform 0.15s; filter:grayscale(1) opacity(0.4); }
+  .star:hover, .star.active { filter:none; transform:scale(1.15); }
+  .star-labels { display:flex; justify-content:space-between; font-size:11px; color:var(--muted); margin-top:-16px; margin-bottom:24px; padding:0 4px; }
+  .comment-area { width:100%; background:#0d0f14; border:1px solid var(--border); border-radius:10px; color:var(--text); padding:12px 14px; font-size:14px; font-family:inherit; resize:vertical; min-height:90px; margin-bottom:20px; }
+  .comment-area:focus { outline:none; border-color:var(--accent); }
+  .submit-btn { background:linear-gradient(135deg,#0070f3,#00c8ff); color:#fff; border:none; border-radius:10px; padding:14px 32px; font-size:15px; font-weight:700; cursor:pointer; width:100%; }
+  .submit-btn:hover { opacity:0.9; }
+  .skip-link { display:block; margin-top:14px; font-size:13px; color:var(--muted); cursor:pointer; }
+  .skip-link:hover { color:var(--accent); }
+  .success-state { display:none; text-align:center; }
+  .success-state .big-check { font-size:64px; margin-bottom:16px; }
+  .success-state h2 { font-size:22px; font-weight:800; margin-bottom:8px; }
+  .success-state p { color:var(--muted); font-size:14px; margin-bottom:24px; }
+</style>
+</head>
+<body>
+<div class="rating-card">
+  <!-- Rating Form -->
+  <div id="rating-form">
+    <div class="rating-icon">🏆</div>
+    <div class="rating-title">Wie war dein Plan?</div>
+    <div class="rating-sub">Dein Feedback hilft Coach René, deinen nächsten Plan noch besser zu machen.</div>
+
+    <div class="stars" id="stars">
+      <span class="star" data-val="1" onclick="setStar(1)">⭐</span>
+      <span class="star" data-val="2" onclick="setStar(2)">⭐</span>
+      <span class="star" data-val="3" onclick="setStar(3)">⭐</span>
+      <span class="star" data-val="4" onclick="setStar(4)">⭐</span>
+      <span class="star" data-val="5" onclick="setStar(5)">⭐</span>
+    </div>
+    <div class="star-labels">
+      <span>Enttäuschend</span>
+      <span>Ausgezeichnet</span>
+    </div>
+
+    <textarea class="comment-area" id="rating-comment" placeholder="Was hat dir besonders gut gefallen? Was können wir verbessern?"></textarea>
+
+    <button class="submit-btn" onclick="submitRating()">✅ Bewertung abschicken</button>
+    <a class="skip-link" href="/portal/dashboard">Überspringen →</a>
+  </div>
+
+  <!-- Success State -->
+  <div class="success-state" id="success-state">
+    <div class="big-check">🎉</div>
+    <h2>Danke für dein Feedback!</h2>
+    <p>Coach René wird deine Bewertung für deinen nächsten Plan berücksichtigen.</p>
+    <button class="submit-btn" onclick="window.location.href='/portal/dashboard'">Zurück zum Dashboard</button>
+  </div>
+</div>
+
+<script>
+let selectedStars = 0;
+
+function setStar(val) {
+  selectedStars = val;
+  document.querySelectorAll('.star').forEach((s, i) => {
+    s.classList.toggle('active', i < val);
+  });
+}
+
+async function submitRating() {
+  if (selectedStars === 0) {
+    alert('Bitte wähle eine Bewertung (1–5 Sterne).');
+    return;
+  }
+  const r = await fetch('/portal/rating', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      stars: selectedStars,
+      comment: document.getElementById('rating-comment').value,
+      plan_id: {{ plan_id or 'null' }}
+    })
+  });
+  if (r.ok) {
+    document.getElementById('rating-form').style.display = 'none';
+    document.getElementById('success-state').style.display = 'block';
+  }
+}
+</script>
+</body>
+</html>

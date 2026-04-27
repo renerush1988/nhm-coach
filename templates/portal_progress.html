@@ -197,7 +197,59 @@
   </div>
   {% endif %}
 
+
+  <!-- Foto-Upload -->
+  <div class="log-form" style="margin-top:8px;">
+    <h3>📸 Fortschrittsfotos</h3>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:14px;">Lade Vorher/Nachher-Fotos hoch. Nur du und dein Coach sehen sie.</p>
+    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:14px;">
+      <select id="photo-label" style="background:#0d0f14;border:1px solid var(--border);border-radius:8px;color:var(--text);padding:9px 12px;font-size:13px;">
+        <option value="Fortschritt">Fortschritt</option>
+        <option value="Vorher">Vorher</option>
+        <option value="Nachher">Nachher</option>
+        <option value="Woche 4">Woche 4</option>
+        <option value="Woche 8">Woche 8</option>
+        <option value="Woche 12">Woche 12</option>
+      </select>
+      <label style="background:linear-gradient(135deg,#0070f3,#00c8ff);color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:13px;font-weight:600;cursor:pointer;">
+        📷 Foto auswählen
+        <input type="file" id="photo-input" accept="image/*" style="display:none;" onchange="uploadPhoto(this)">
+      </label>
+      <span id="photo-status" style="font-size:13px;color:#22c55e;"></span>
+    </div>
+    {% if photos %}
+    <div class="photo-grid">
+      {% for photo in photos %}
+      <div class="photo-card" onclick="openLightbox('/static/uploads/{{ photo.filename }}')">
+        <img src="/static/uploads/{{ photo.filename }}" alt="{{ photo.label }}" loading="lazy">
+        <div class="photo-card-label">{{ photo.label }} · {{ photo.date }}</div>
+        <button class="photo-card-delete" onclick="event.stopPropagation(); deletePhoto({{ photo.id }})">✕</button>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p style="color:var(--muted);font-size:13px;">Noch keine Fotos hochgeladen.</p>
+    {% endif %}
+  </div>
+
 </main>
+
+<!-- Bottom Nav (Mobile) -->
+<nav class="portal-bottom-nav">
+  <div class="portal-bottom-nav-inner">
+    <a href="/portal/dashboard" class="portal-bottom-nav-item"><span class="nav-icon">🏠</span>Home</a>
+    <a href="/portal/plan" class="portal-bottom-nav-item"><span class="nav-icon">📋</span>Plan</a>
+    <a href="/portal/progress" class="portal-bottom-nav-item active"><span class="nav-icon">📈</span>Fortschritt</a>
+    <a href="/portal/chat" class="portal-bottom-nav-item"><span class="nav-icon">💬</span>Chat</a>
+    <a href="/portal/emergency" class="portal-bottom-nav-item emergency"><span class="nav-icon">🆘</span>Notfall</a>
+  </div>
+</nav>
+
+<!-- Lightbox -->
+<div id="lightbox" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:9999;align-items:center;justify-content:center;" onclick="closeLightbox()">
+  <span style="position:absolute;top:16px;right:20px;font-size:28px;color:white;cursor:pointer;">✕</span>
+  <img id="lightbox-img" src="" alt="" style="max-width:90vw;max-height:90vh;border-radius:8px;object-fit:contain;">
+</div>
 
 <script>
 {% if entries and entries|length > 1 %}
@@ -257,6 +309,42 @@ async function logProgress() {
 
 // Set today's date
 document.getElementById('log-date').value = new Date().toISOString().split('T')[0];
+
+// Photo Upload
+async function uploadPhoto(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const status = document.getElementById('photo-status');
+  status.textContent = '⏳ Lädt hoch…';
+  const label = document.getElementById('photo-label').value;
+  const fd = new FormData();
+  fd.append('photo', file);
+  fd.append('label', label);
+  fd.append('date', new Date().toISOString().split('T')[0]);
+  const r = await fetch('/portal/progress/photo', { method: 'POST', body: fd });
+  if (r.ok) {
+    status.textContent = '✅ Hochgeladen!';
+    setTimeout(() => location.reload(), 800);
+  } else {
+    status.textContent = '❌ Fehler beim Upload';
+  }
+  input.value = '';
+}
+
+async function deletePhoto(id) {
+  if (!confirm('Foto löschen?')) return;
+  await fetch('/portal/progress/photo/' + id + '/delete', { method: 'POST' });
+  location.reload();
+}
+
+function openLightbox(src) {
+  const lb = document.getElementById('lightbox');
+  document.getElementById('lightbox-img').src = src;
+  lb.style.display = 'flex';
+}
+function closeLightbox() {
+  document.getElementById('lightbox').style.display = 'none';
+}
 </script>
 </body>
 </html>

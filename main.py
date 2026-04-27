@@ -38,7 +38,10 @@ from database import (
     # Session 3
     create_news_item, get_news_items, get_pending_news, approve_news_item,
     get_approved_news_for_client, delete_news_item,
-    schedule_reminder, get_due_reminders, mark_reminder_sent, get_reminders_for_client
+    schedule_reminder, get_due_reminders, mark_reminder_sent, get_reminders_for_client,
+    # Session 4
+    save_progress_photo, get_progress_photos, delete_progress_photo,
+    save_rating, get_ratings
 )
 from ai_generator import generate_plan
 from pdf_generator import generate_pdf
@@ -1059,10 +1062,11 @@ async def portal_progress_page(request: Request):
         return RedirectResponse("/portal/login")
     entries = get_progress_entries(client["id"], limit=30)
     streak = get_streak(client["id"])
+    photos = get_progress_photos(client["id"])
     today = datetime.utcnow().strftime("%Y-%m-%d")
     return templates.TemplateResponse("portal_progress.html", {
         "request": request, "client": client,
-        "entries": entries, "streak": streak, "today": today
+        "entries": entries, "streak": streak, "photos": photos, "today": today
     })
 
 
@@ -1477,4 +1481,122 @@ async def dashboard_badges(request: Request):
     return JSONResponse({
         "emergency_count": len(pending_emergencies),
         "news_pending": len(pending_news)
+    })
+
+
+# ── Session 4: Foto-Upload, Bewertung, Onboarding ────────────────────────────
+
+import uuid as _uuid
+from pathlib import Path as _Path
+
+UPLOAD_DIR = _Path(__file__).parent / "static" / "uploads"
+UPLOAD_DIR.mkdir(exist_ok=True)
+
+# ── Progress Photos ───────────────────────────────────────────────────────────
+
+@app.post("/portal/progress/photo")
+async def portal_upload_photo(request: Request, photo: UploadFile = File(...),
+                               label: str = Form("Fortschritt"), date: str = Form("")):
+    client = get_portal_client(request)
+    if not client:
+        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+    if not date:
+        date = datetime.utcnow().strftime("%Y-%m-%d")
+    ext = photo.filename.rsplit(".", 1)[-1].lower() if "." in photo.filename else "jpg"
+    filename = f"photo_{client['id']}_{_uuid.uuid4().hex[:8]}.{ext}"
+    dest = UPLOAD_DIR / filename
+    content = await photo.read()
+    dest.write_bytes(content)
+    save_progress_photo(client["id"], filename, label, date)
+    return JSONResponse({"ok": True, "filename": filename})
+
+
+@app.post("/portal/progress/photo/{photo_id}/delete")
+async def portal_delete_photo(request: Request, photo_id: int):
+    client = get_portal_client(request)
+    if not client:
+        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+    filename = delete_progress_photo(photo_id, client["id"])
+    if filename:
+        dest = UPLOAD_DIR / filename
+        if dest.exists():
+            dest.unlink()
+    return JSONResponse({"ok": True})
+
+
+# ── Kunden-Bewertung ──────────────────────────────────────────────────────────
+
+@app.get("/portal/rating")
+async def portal_rating_page(request: Request, plan_id: int = None):
+    client = get_portal_client(request)
+    if not client:
+        return RedirectResponse("/portal/login")
+    return templates.TemplateResponse("portal_rating.html", {
+        "request": request, "client": client, "plan_id": plan_id
+    })
+
+
+@app.post("/portal/rating")
+async def portal_submit_rating(request: Request):
+    client = get_portal_client(request)
+    if not client:
+        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+    data = await request.json()
+    stars = int(data.get("stars", 5))
+    comment = data.get("comment", "")
+    plan_id = data.get("plan_id")
+    save_rating(client["id"], stars, comment, plan_id)
+    return JSONResponse({"ok": True})
+
+
+# ── Onboarding Wizard ─────────────────────────────────────────────────────────
+
+@app.get("/portal/onboarding")
+async def portal_onboarding_page(request: Request):
+    client = get_portal_client(request)
+    if not client:
+        return RedirectResponse("/portal/login")
+    return templates.TemplateResponse("portal_onboarding.html", {
+        "request": request, "client": client
+    })
+
+
+@app.post("/portal/onboarding")
+async def portal_submit_onboarding(request: Request):
+    client = get_portal_client(request)
+    if not client:
+        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+    data = await request.json()
+    note_text = (
+        f"ONBOARDING: Gewicht {data.get('weight_kg')}kg | Groesse {data.get('height_cm')}cm | "
+        f"Alter {data.get('age')} | Ziel {data.get('target_weight')}kg | "
+        f"Verletzungen: {data.get('injuries','–')} | Erfahrung: {data.get('experience','–')} | "
+        f"Stress {data.get('stress_level')}/10 | Schlaf {data.get('sleep_hours')}h | "
+        f"Ernaehrung: {data.get('diet_type','–')} | Allergien: {data.get('allergies','–')} | "
+        f"Mahlzeiten: {data.get('meals_per_day')} | "
+        f"Motivation: {data.get('motivation','–')} | Hindernisse: {data.get('obstacles','–')}"
+    )
+    add_client_note(client["id"], note_text, "Onboarding", ai_relevant=True)
+    return JSONResponse({"ok": True})
+
+
+# ── Push Subscription (placeholder) ──────────────────────────────────────────
+
+@app.post("/portal/push/subscribe")
+async def portal_push_subscribe(request: Request):
+    client = get_portal_client(request)
+    if not client:
+        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+    return JSONResponse({"ok": True, "message": "Benachrichtigungen aktiviert"})
+
+
+# ── Commander: Ratings ────────────────────────────────────────────────────────
+
+@app.get("/ratings")
+async def commander_ratings(request: Request):
+    if not is_authenticated(request):
+        return RedirectResponse("/login")
+    all_ratings = get_ratings()
+    return templates.TemplateResponse("commander_ratings.html", {
+        "request": request, "ratings": all_ratings
     })

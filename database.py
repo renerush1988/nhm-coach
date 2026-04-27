@@ -232,6 +232,32 @@ def init_db():
         )
     """)
 
+    # ── Progress Fotos ──────────────────────────────────────────────────────────────────
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS progress_photos (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            client_id   INTEGER NOT NULL,
+            filename    TEXT NOT NULL,
+            label       TEXT NOT NULL DEFAULT 'Fortschritt',
+            date        TEXT NOT NULL,
+            created_at  TEXT NOT NULL,
+            FOREIGN KEY (client_id) REFERENCES clients(id)
+        )
+    """)
+
+    # ── Kunden-Bewertung ───────────────────────────────────────────────────────────────
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS client_ratings (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            client_id   INTEGER NOT NULL,
+            plan_id     INTEGER DEFAULT NULL,
+            stars       INTEGER NOT NULL DEFAULT 5,
+            comment     TEXT DEFAULT '',
+            created_at  TEXT NOT NULL,
+            FOREIGN KEY (client_id) REFERENCES clients(id)
+        )
+    """)
+
     # ── News / "Wusstest du schon?" ──────────────────────────────────────────
     c.execute("""
         CREATE TABLE IF NOT EXISTS news_items (
@@ -1194,5 +1220,75 @@ def get_reminders_for_client(client_id: int) -> list:
     rows = conn.execute("""
         SELECT * FROM scheduled_reminders WHERE client_id=? ORDER BY due_date ASC
     """, (client_id,)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+# ── Progress Fotos ────────────────────────────────────────────────────────────
+
+def save_progress_photo(client_id: int, filename: str, label: str, date: str) -> int:
+    now = datetime.utcnow().isoformat()
+    conn = get_conn()
+    c = conn.cursor()
+    c.execute("""
+        INSERT INTO progress_photos (client_id, filename, label, date, created_at)
+        VALUES (?, ?, ?, ?, ?)
+    """, (client_id, filename, label, date, now))
+    pid = c.lastrowid
+    conn.commit()
+    conn.close()
+    return pid
+
+
+def get_progress_photos(client_id: int) -> list:
+    conn = get_conn()
+    rows = conn.execute("""
+        SELECT * FROM progress_photos WHERE client_id=? ORDER BY date DESC
+    """, (client_id,)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def delete_progress_photo(photo_id: int, client_id: int) -> str:
+    conn = get_conn()
+    row = conn.execute("SELECT filename FROM progress_photos WHERE id=? AND client_id=?",
+                       (photo_id, client_id)).fetchone()
+    filename = row["filename"] if row else None
+    conn.execute("DELETE FROM progress_photos WHERE id=? AND client_id=?", (photo_id, client_id))
+    conn.commit()
+    conn.close()
+    return filename
+
+
+# ── Kunden-Bewertung ──────────────────────────────────────────────────────────
+
+def save_rating(client_id: int, stars: int, comment: str = "", plan_id: int = None) -> int:
+    now = datetime.utcnow().isoformat()
+    conn = get_conn()
+    c = conn.cursor()
+    c.execute("""
+        INSERT INTO client_ratings (client_id, plan_id, stars, comment, created_at)
+        VALUES (?, ?, ?, ?, ?)
+    """, (client_id, plan_id, stars, comment, now))
+    rid = c.lastrowid
+    conn.commit()
+    conn.close()
+    return rid
+
+
+def get_ratings(client_id: int = None) -> list:
+    conn = get_conn()
+    if client_id:
+        rows = conn.execute("""
+            SELECT r.*, c.name as client_name FROM client_ratings r
+            JOIN clients c ON r.client_id = c.id
+            WHERE r.client_id=? ORDER BY r.created_at DESC
+        """, (client_id,)).fetchall()
+    else:
+        rows = conn.execute("""
+            SELECT r.*, c.name as client_name FROM client_ratings r
+            JOIN clients c ON r.client_id = c.id
+            ORDER BY r.created_at DESC LIMIT 50
+        """).fetchall()
     conn.close()
     return [dict(r) for r in rows]

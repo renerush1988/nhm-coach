@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Willkommen – NHM Portal</title>
+<link rel="stylesheet" href="/static/css/style.css">
+<style>
+  :root { --accent:#00c8ff; --bg:#0d0f14; --card:#161a22; --border:#2a2f3d; --text:#e2e8f0; --muted:#6b7280; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--text); font-family:'Inter',-apple-system,sans-serif; min-height:100vh; display:flex; align-items:flex-start; justify-content:center; padding:32px 16px 48px; }
+  .wizard-wrap { width:100%; max-width:560px; }
+  .wizard-logo { text-align:center; margin-bottom:28px; }
+  .wizard-logo h1 { font-size:26px; font-weight:800; color:var(--accent); }
+  .wizard-logo p { color:var(--muted); font-size:14px; margin-top:4px; }
+  .wizard-card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:28px; }
+  .wizard-progress { display:flex; align-items:center; margin-bottom:28px; }
+  .wizard-step-dot { width:30px; height:30px; border-radius:50%; background:#1e2330; border:2px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:var(--muted); flex-shrink:0; transition:all 0.3s; }
+  .wizard-step-dot.active { background:linear-gradient(135deg,#0070f3,#00c8ff); border-color:#00c8ff; color:white; }
+  .wizard-step-dot.done { background:#22c55e; border-color:#22c55e; color:white; }
+  .wizard-step-line { flex:1; height:2px; background:var(--border); transition:background 0.3s; }
+  .wizard-step-line.done { background:#22c55e; }
+  .wizard-panel { display:none; }
+  .wizard-panel.active { display:block; }
+  .wizard-title { font-size:20px; font-weight:700; margin-bottom:6px; }
+  .wizard-sub { font-size:13px; color:var(--muted); margin-bottom:22px; line-height:1.5; }
+  .opt-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin-bottom:20px; }
+  .opt-card { background:#0d0f14; border:2px solid var(--border); border-radius:12px; padding:14px 12px; text-align:center; cursor:pointer; transition:all 0.2s; }
+  .opt-card .opt-icon { font-size:26px; display:block; margin-bottom:6px; }
+  .opt-card .opt-label { font-size:13px; font-weight:600; }
+  .opt-card .opt-desc { font-size:11px; color:var(--muted); margin-top:3px; }
+  .opt-card:hover, .opt-card.selected { border-color:#00c8ff; background:rgba(0,200,255,0.08); }
+  .opt-card.selected .opt-label { color:#00c8ff; }
+  .field-group { margin-bottom:16px; }
+  .field-group label { display:block; font-size:12px; color:var(--muted); font-weight:600; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.5px; }
+  .field-group input, .field-group select, .field-group textarea { width:100%; background:#0d0f14; border:1px solid var(--border); border-radius:8px; color:var(--text); padding:11px 14px; font-size:14px; font-family:inherit; }
+  .field-group input:focus, .field-group select:focus, .field-group textarea:focus { outline:none; border-color:var(--accent); }
+  .field-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .slider-wrap { display:flex; align-items:center; gap:12px; }
+  .slider-wrap input[type=range] { flex:1; accent-color:var(--accent); }
+  .slider-val { font-size:16px; font-weight:700; color:var(--accent); min-width:28px; text-align:center; }
+  .wizard-nav { display:flex; justify-content:space-between; align-items:center; margin-top:24px; }
+  .btn-wiz-back { background:transparent; border:1px solid var(--border); color:var(--muted); border-radius:8px; padding:10px 20px; font-size:14px; cursor:pointer; }
+  .btn-wiz-back:hover { border-color:var(--accent); color:var(--accent); }
+  .btn-wiz-next { background:linear-gradient(135deg,#0070f3,#00c8ff); color:#fff; border:none; border-radius:8px; padding:10px 24px; font-size:14px; font-weight:600; cursor:pointer; }
+  .btn-wiz-next:hover { opacity:0.9; }
+  .step-counter { font-size:12px; color:var(--muted); }
+  .welcome-check { display:flex; align-items:flex-start; gap:12px; background:#0d0f14; border:1px solid var(--border); border-radius:10px; padding:14px; margin-bottom:10px; }
+  .welcome-check-icon { font-size:20px; flex-shrink:0; }
+  .welcome-check-text { font-size:13px; color:var(--muted); }
+  .welcome-check-text strong { color:var(--text); }
+  @media (max-width:480px) { .opt-grid { grid-template-columns:repeat(2,1fr); } .field-row { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<div class="wizard-wrap">
+  <div class="wizard-logo">
+    <h1>🧠 NHM Portal</h1>
+    <p>Willkommen, {{ client.name.split()[0] }}! Lass uns dein Profil vervollständigen.</p>
+  </div>
+
+  <div class="wizard-card">
+    <!-- Progress Bar -->
+    <div class="wizard-progress">
+      <div class="wizard-step-dot active" id="dot-1">1</div>
+      <div class="wizard-step-line" id="line-1"></div>
+      <div class="wizard-step-dot" id="dot-2">2</div>
+      <div class="wizard-step-line" id="line-2"></div>
+      <div class="wizard-step-dot" id="dot-3">3</div>
+      <div class="wizard-step-line" id="line-3"></div>
+      <div class="wizard-step-dot" id="dot-4">4</div>
+      <div class="wizard-step-line" id="line-4"></div>
+      <div class="wizard-step-dot" id="dot-5">5</div>
+    </div>
+
+    <!-- Step 1: Willkommen -->
+    <div class="wizard-panel active" id="panel-1">
+      <div class="wizard-title">👋 Willkommen bei NHM!</div>
+      <div class="wizard-sub">Dein Coach René hat dein Profil bereits angelegt. In 5 kurzen Schritten vervollständigen wir deine Angaben für einen noch besseren Plan.</div>
+      <div class="welcome-check">
+        <div class="welcome-check-icon">📋</div>
+        <div class="welcome-check-text"><strong>Dein persönlicher Plan</strong> wartet auf dich — Training, Ernährung und mehr.</div>
+      </div>
+      <div class="welcome-check">
+        <div class="welcome-check-icon">🔒</div>
+        <div class="welcome-check-text"><strong>Deine Daten sind sicher</strong> — nur du und dein Coach haben Zugriff.</div>
+      </div>
+      <div class="welcome-check">
+        <div class="welcome-check-icon">🎯</div>
+        <div class="welcome-check-text"><strong>Fokus auf dein Ziel</strong> — dein Coach schaltet Schritt für Schritt neue Inhalte frei.</div>
+      </div>
+      <div class="wizard-nav">
+        <span class="step-counter">Schritt 1 von 5</span>
+        <button class="btn-wiz-next" onclick="nextStep(1)">Los geht's →</button>
+      </div>
+    </div>
+
+    <!-- Step 2: Körperdaten -->
+    <div class="wizard-panel" id="panel-2">
+      <div class="wizard-title">⚖️ Deine Körperdaten</div>
+      <div class="wizard-sub">Diese Angaben helfen deinem Coach, deinen Plan noch präziser anzupassen.</div>
+      <div class="field-row">
+        <div class="field-group">
+          <label>Aktuelles Gewicht (kg)</label>
+          <input type="number" id="ob-weight" placeholder="z.B. 82.5" step="0.5">
+        </div>
+        <div class="field-group">
+          <label>Körpergröße (cm)</label>
+          <input type="number" id="ob-height" placeholder="z.B. 178">
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field-group">
+          <label>Alter</label>
+          <input type="number" id="ob-age" placeholder="z.B. 32">
+        </div>
+        <div class="field-group">
+          <label>Zielgewicht (kg)</label>
+          <input type="number" id="ob-target-weight" placeholder="z.B. 78" step="0.5">
+        </div>
+      </div>
+      <div class="field-group">
+        <label>Bekannte Einschränkungen / Verletzungen</label>
+        <input type="text" id="ob-injuries" placeholder="z.B. Knieschmerzen links, Rückenprobleme...">
+      </div>
+      <div class="wizard-nav">
+        <button class="btn-wiz-back" onclick="prevStep(2)">← Zurück</button>
+        <span class="step-counter">Schritt 2 von 5</span>
+        <button class="btn-wiz-next" onclick="nextStep(2)">Weiter →</button>
+      </div>
+    </div>
+
+    <!-- Step 3: Erfahrung & Alltag -->
+    <div class="wizard-panel" id="panel-3">
+      <div class="wizard-title">🏋️ Erfahrung & Alltag</div>
+      <div class="wizard-sub">Wie sieht dein Alltag aus? Das beeinflusst dein Training und deine Ernährung.</div>
+      <div class="field-group">
+        <label>Trainingserfahrung</label>
+        <div class="opt-grid">
+          <div class="opt-card" onclick="selectOpt(this,'ob-experience','Anfänger')">
+            <span class="opt-icon">🌱</span>
+            <div class="opt-label">Anfänger</div>
+            <div class="opt-desc">0–1 Jahr</div>
+          </div>
+          <div class="opt-card" onclick="selectOpt(this,'ob-experience','Fortgeschritten')">
+            <span class="opt-icon">💪</span>
+            <div class="opt-label">Fortgeschritten</div>
+            <div class="opt-desc">1–3 Jahre</div>
+          </div>
+          <div class="opt-card" onclick="selectOpt(this,'ob-experience','Erfahren')">
+            <span class="opt-icon">🏆</span>
+            <div class="opt-label">Erfahren</div>
+            <div class="opt-desc">3–5 Jahre</div>
+          </div>
+          <div class="opt-card" onclick="selectOpt(this,'ob-experience','Profi')">
+            <span class="opt-icon">⚡</span>
+            <div class="opt-label">Profi</div>
+            <div class="opt-desc">5+ Jahre</div>
+          </div>
+        </div>
+        <input type="hidden" id="ob-experience">
+      </div>
+      <div class="field-group">
+        <label>Stresslevel im Alltag (1 = sehr entspannt, 10 = sehr stressig)</label>
+        <div class="slider-wrap">
+          <input type="range" id="ob-stress" min="1" max="10" value="5" oninput="document.getElementById('ob-stress-val').textContent=this.value">
+          <span class="slider-val" id="ob-stress-val">5</span>
+        </div>
+      </div>
+      <div class="field-group">
+        <label>Durchschnittliche Schlafdauer</label>
+        <div class="slider-wrap">
+          <input type="range" id="ob-sleep" min="4" max="10" value="7" step="0.5" oninput="document.getElementById('ob-sleep-val').textContent=this.value+'h'">
+          <span class="slider-val" id="ob-sleep-val">7h</span>
+        </div>
+      </div>
+      <div class="wizard-nav">
+        <button class="btn-wiz-back" onclick="prevStep(3)">← Zurück</button>
+        <span class="step-counter">Schritt 3 von 5</span>
+        <button class="btn-wiz-next" onclick="nextStep(3)">Weiter →</button>
+      </div>
+    </div>
+
+    <!-- Step 4: Ernährung -->
+    <div class="wizard-panel" id="panel-4">
+      <div class="wizard-title">🥗 Ernährungsgewohnheiten</div>
+      <div class="wizard-sub">Damit dein Ernährungsplan zu deinem Leben passt.</div>
+      <div class="field-group">
+        <label>Ernährungsform</label>
+        <div class="opt-grid">
+          <div class="opt-card" onclick="selectOpt(this,'ob-diet','Alles')">
+            <span class="opt-icon">🍖</span>
+            <div class="opt-label">Alles</div>
+          </div>
+          <div class="opt-card" onclick="selectOpt(this,'ob-diet','Vegetarisch')">
+            <span class="opt-icon">🥦</span>
+            <div class="opt-label">Vegetarisch</div>
+          </div>
+          <div class="opt-card" onclick="selectOpt(this,'ob-diet','Vegan')">
+            <span class="opt-icon">🌿</span>
+            <div class="opt-label">Vegan</div>
+          </div>
+          <div class="opt-card" onclick="selectOpt(this,'ob-diet','Low Carb')">
+            <span class="opt-icon">🥩</span>
+            <div class="opt-label">Low Carb</div>
+          </div>
+        </div>
+        <input type="hidden" id="ob-diet">
+      </div>
+      <div class="field-group">
+        <label>Unverträglichkeiten / Allergien</label>
+        <input type="text" id="ob-allergies" placeholder="z.B. Laktose, Gluten, Nüsse...">
+      </div>
+      <div class="field-group">
+        <label>Mahlzeiten pro Tag</label>
+        <div class="slider-wrap">
+          <input type="range" id="ob-meals" min="2" max="6" value="3" oninput="document.getElementById('ob-meals-val').textContent=this.value">
+          <span class="slider-val" id="ob-meals-val">3</span>
+        </div>
+      </div>
+      <div class="wizard-nav">
+        <button class="btn-wiz-back" onclick="prevStep(4)">← Zurück</button>
+        <span class="step-counter">Schritt 4 von 5</span>
+        <button class="btn-wiz-next" onclick="nextStep(4)">Weiter →</button>
+      </div>
+    </div>
+
+    <!-- Step 5: Motivation -->
+    <div class="wizard-panel" id="panel-5">
+      <div class="wizard-title">🎯 Dein Warum</div>
+      <div class="wizard-sub">Was motiviert dich? Das hilft deinem Coach, dich besser zu unterstützen.</div>
+      <div class="field-group">
+        <label>Warum möchtest du dein Ziel erreichen?</label>
+        <textarea id="ob-motivation" rows="3" placeholder="z.B. Ich möchte mehr Energie für meine Familie haben und mich in meinem Körper wohlfühlen..."></textarea>
+      </div>
+      <div class="field-group">
+        <label>Was hat dich bisher aufgehalten?</label>
+        <textarea id="ob-obstacles" rows="3" placeholder="z.B. Zeitmangel, keine Struktur, schlechte Ernährungsgewohnheiten..."></textarea>
+      </div>
+      <div class="field-group">
+        <label>Wie erreichst du dich am besten? (optional)</label>
+        <input type="text" id="ob-contact" placeholder="z.B. WhatsApp, E-Mail, Telefon...">
+      </div>
+      <div class="wizard-nav">
+        <button class="btn-wiz-back" onclick="prevStep(5)">← Zurück</button>
+        <span class="step-counter">Schritt 5 von 5</span>
+        <button class="btn-wiz-next" onclick="submitOnboarding()" id="submit-btn">✅ Profil abschließen</button>
+      </div>
+    </div>
+
+  </div><!-- /wizard-card -->
+</div><!-- /wizard-wrap -->
+
+<script>
+let currentStep = 1;
+const totalSteps = 5;
+
+function nextStep(from) {
+  if (from < totalSteps) {
+    setStep(from + 1);
+  }
+}
+
+function prevStep(from) {
+  if (from > 1) {
+    setStep(from - 1);
+  }
+}
+
+function setStep(step) {
+  // Hide all panels
+  for (let i = 1; i <= totalSteps; i++) {
+    document.getElementById('panel-' + i).classList.remove('active');
+    const dot = document.getElementById('dot-' + i);
+    dot.classList.remove('active', 'done');
+    if (i < step) {
+      dot.classList.add('done');
+      dot.textContent = '✓';
+    } else if (i === step) {
+      dot.classList.add('active');
+      dot.textContent = i;
+    } else {
+      dot.textContent = i;
+    }
+    if (i < totalSteps) {
+      const line = document.getElementById('line-' + i);
+      line.classList.toggle('done', i < step);
+    }
+  }
+  document.getElementById('panel-' + step).classList.add('active');
+  currentStep = step;
+  window.scrollTo(0, 0);
+}
+
+function selectOpt(el, fieldId, value) {
+  // Deselect siblings
+  el.closest('.opt-grid').querySelectorAll('.opt-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById(fieldId).value = value;
+}
+
+async function submitOnboarding() {
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Speichert…';
+
+  const data = {
+    weight_kg: parseFloat(document.getElementById('ob-weight').value) || null,
+    height_cm: parseInt(document.getElementById('ob-height').value) || null,
+    age: parseInt(document.getElementById('ob-age').value) || null,
+    target_weight: parseFloat(document.getElementById('ob-target-weight').value) || null,
+    injuries: document.getElementById('ob-injuries').value,
+    experience: document.getElementById('ob-experience').value,
+    stress_level: parseInt(document.getElementById('ob-stress').value),
+    sleep_hours: parseFloat(document.getElementById('ob-sleep').value),
+    diet_type: document.getElementById('ob-diet').value,
+    allergies: document.getElementById('ob-allergies').value,
+    meals_per_day: parseInt(document.getElementById('ob-meals').value),
+    motivation: document.getElementById('ob-motivation').value,
+    obstacles: document.getElementById('ob-obstacles').value,
+    contact_pref: document.getElementById('ob-contact').value,
+  };
+
+  const r = await fetch('/portal/onboarding', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(data)
+  });
+
+  if (r.ok) {
+    window.location.href = '/portal/dashboard?welcome=1';
+  } else {
+    btn.disabled = false;
+    btn.textContent = '✅ Profil abschließen';
+    alert('Fehler beim Speichern. Bitte versuche es erneut.');
+  }
+}
+</script>
+</body>
+</html>
