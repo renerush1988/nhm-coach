@@ -123,13 +123,14 @@
     <!-- Input-Bereich -->
     <div class="chat-input-area">
       <div class="chat-input-wrapper">
+        <button id="mic-btn" onclick="toggleRecording()" title="Sprachnachricht (Mikrofon)" style="background:#1e2330;border:1px solid #2a2f3d;border-radius:8px;color:#6b7280;padding:8px 12px;cursor:pointer;font-size:16px;flex-shrink:0;transition:all 0.2s;">🎤</button>
         <textarea id="user-input" class="chat-input" placeholder="Stelle eine Frage zu deinem Konzept, einem Kunden oder einer Coaching-Situation..." rows="1"
                   onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
         <button id="send-btn" class="btn-send" onclick="sendMessage()" {% if not active_chat %}disabled{% endif %}>
           <span id="send-icon">➤</span>
         </button>
       </div>
-      <div class="chat-input-hint">Enter = Senden &nbsp;|&nbsp; Shift+Enter = Neue Zeile</div>
+      <div class="chat-input-hint">Enter = Senden &nbsp;|&nbsp; Shift+Enter = Neue Zeile &nbsp;|&nbsp; 🎤 = Spracheingabe</div>
     </div>
 
   </div>
@@ -239,6 +240,51 @@ function handleKey(e) {
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault();
     sendMessage();
+  }
+}
+
+// ── Audio Recording (Coach) ─────────────────────────────────────────────────
+let _recorder = null, _chunks = [], _isRec = false;
+
+async function toggleRecording() {
+  const btn = document.getElementById('mic-btn');
+  if (!_isRec) {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      _recorder = new MediaRecorder(stream);
+      _chunks = [];
+      _recorder.ondataavailable = e => _chunks.push(e.data);
+      _recorder.onstop = async () => {
+        const blob = new Blob(_chunks, { type: 'audio/webm' });
+        const fd = new FormData();
+        fd.append('audio', blob, 'voice.webm');
+        btn.textContent = '⏳';
+        btn.style.color = '#f59e0b';
+        try {
+          const r = await fetch('/api/speech-to-text', { method: 'POST', body: fd });
+          const data = await r.json();
+          if (data.text) {
+            const input = document.getElementById('user-input');
+            input.value = (input.value + ' ' + data.text).trim();
+            autoResize(input);
+          }
+        } catch(e) { console.error('STT error', e); }
+        btn.textContent = '🎤';
+        btn.style.color = '';
+        stream.getTracks().forEach(t => t.stop());
+      };
+      _recorder.start();
+      _isRec = true;
+      btn.textContent = '⏹️';
+      btn.style.color = '#ef4444';
+      btn.style.borderColor = '#ef4444';
+    } catch(e) {
+      alert('Mikrofon-Zugriff verweigert. Bitte erlaube den Zugriff in den Browser-Einstellungen.');
+    }
+  } else {
+    _recorder.stop();
+    _isRec = false;
+    btn.style.borderColor = '#2a2f3d';
   }
 }
 

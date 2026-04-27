@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>News – NHM Portal</title>
+<link rel="stylesheet" href="/static/css/style.css">
+<style>
+  :root { --accent: #00c8ff; --bg: #0d0f14; --card: #161a22; --border: #2a2f3d; --text: #e2e8f0; --muted: #6b7280; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Inter', -apple-system, sans-serif; }
+  .p-nav { background: #111318; border-bottom: 1px solid var(--border); padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 60px; }
+  .p-nav-brand { font-weight: 700; font-size: 18px; color: var(--accent); }
+  .p-nav-links { display: flex; gap: 4px; }
+  .p-nav-link { display: flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 8px; color: var(--muted); text-decoration: none; font-size: 14px; }
+  .p-nav-link:hover, .p-nav-link.active { background: rgba(0,200,255,0.1); color: var(--accent); }
+  .p-main { max-width: 700px; margin: 0 auto; padding: 32px 24px; }
+
+  .page-header { margin-bottom: 28px; }
+  .page-header h1 { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+  .page-header p { color: var(--muted); font-size: 14px; }
+
+  .news-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 22px; margin-bottom: 16px; transition: border-color 0.2s; }
+  .news-card:hover { border-color: var(--accent); }
+  .news-meta { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .news-topic { background: rgba(0,200,255,0.1); color: var(--accent); font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .news-date { font-size: 12px; color: var(--muted); }
+  .news-headline { font-size: 17px; font-weight: 700; margin-bottom: 10px; line-height: 1.4; }
+  .news-summary { font-size: 14px; color: #94a3b8; line-height: 1.6; margin-bottom: 14px; }
+  .news-source { font-size: 12px; color: var(--muted); }
+  .news-source a { color: var(--accent); text-decoration: none; }
+  .news-source a:hover { text-decoration: underline; }
+  .news-cta { margin-top: 14px; background: rgba(0,200,255,0.08); border: 1px solid rgba(0,200,255,0.2); border-radius: 10px; padding: 12px 16px; font-size: 13px; color: var(--accent); }
+  .news-cta strong { display: block; margin-bottom: 3px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+  .empty-state { text-align: center; padding: 60px 20px; color: var(--muted); }
+  .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+  .empty-state h2 { font-size: 18px; font-weight: 600; margin-bottom: 6px; color: var(--text); }
+</style>
+</head>
+<body>
+<nav class="p-nav">
+  <div class="p-nav-brand">🧠 NHM Portal</div>
+  <div class="p-nav-links">
+    <a href="/portal/dashboard" class="p-nav-link">🏠 Home</a>
+    <a href="/portal/plan" class="p-nav-link">📋 Plan</a>
+    <a href="/portal/progress" class="p-nav-link">📈 Fortschritt</a>
+    <a href="/portal/checkin" class="p-nav-link">📊 Check-in</a>
+    <a href="/portal/news" class="p-nav-link active">📰 News</a>
+    <a href="/portal/notes" class="p-nav-link">📝 Notizen</a>
+    <a href="/portal/chat" class="p-nav-link">💬 Chat</a>
+    <a href="/portal/emergency" class="p-nav-link" style="color:#ef4444;">🆘</a>
+    <a href="/portal/logout" class="p-nav-link">🚪</a>
+  </div>
+</nav>
+
+<main class="p-main">
+  <div class="page-header">
+    <h1>📰 Wusstest du schon?</h1>
+    <p>Aktuelle Studien und Erkenntnisse zu deinen Themen — von Coach René kuratiert.</p>
+  </div>
+
+  {% if news %}
+    {% for item in news %}
+    <div class="news-card">
+      <div class="news-meta">
+        <span class="news-topic">{{ item.topic }}</span>
+        <span class="news-date">{{ item.sent_at[:10] if item.sent_at else item.created_at[:10] }}</span>
+      </div>
+      <div class="news-headline">{{ item.headline }}</div>
+      <div class="news-summary">{{ item.summary }}</div>
+      {% if item.source %}
+      <div class="news-source">
+        📚 Quelle:
+        {% if item.source_url %}
+        <a href="{{ item.source_url }}" target="_blank" rel="noopener">{{ item.source }}</a>
+        {% else %}
+        {{ item.source }}
+        {% endif %}
+      </div>
+      {% endif %}
+      {% if item.cta %}
+      <div class="news-cta">
+        <strong>💡 Für dich relevant:</strong>
+        {{ item.cta }}
+      </div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  {% else %}
+  <div class="empty-state">
+    <div class="icon">📰</div>
+    <h2>Noch keine News</h2>
+    <p>Coach René wird bald interessante Studien und Erkenntnisse für dich freischalten.</p>
+  </div>
+  {% endif %}
+</main>
+</body>
+</html>

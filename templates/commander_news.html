@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+{% block title %}News-Verwaltung – NHM Coach{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">📰 News-Verwaltung</h1>
+    <p class="page-sub">KI-generierte Studien-Snippets für Kunden freigeben</p>
+  </div>
+  <div style="display:flex;gap:10px;">
+    <button onclick="generateNews()" class="btn-primary" id="gen-btn">✨ KI generiert News</button>
+    <a href="/" class="btn-secondary">← Dashboard</a>
+  </div>
+</div>
+
+<!-- Generate Form -->
+<div id="gen-form" style="display:none;background:#161a22;border:1px solid #2a2f3d;border-radius:12px;padding:20px;margin-bottom:24px;max-width:700px;">
+  <h3 style="font-size:15px;font-weight:600;margin-bottom:14px;">✨ News generieren</h3>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+    <div>
+      <label style="font-size:12px;color:#6b7280;display:block;margin-bottom:4px;">Thema</label>
+      <select id="news-topic" style="width:100%;background:#0d0f14;border:1px solid #2a2f3d;border-radius:8px;color:#e2e8f0;padding:10px;font-size:14px;">
+        <option value="training">Training</option>
+        <option value="ernaehrung">Ernährung</option>
+        <option value="schlaf">Schlaf</option>
+        <option value="stress">Stress</option>
+        <option value="supplements">Supplements</option>
+        <option value="longevity">Longevity</option>
+        <option value="mental">Mental Health</option>
+        <option value="allgemein">Allgemein</option>
+      </select>
+    </div>
+    <div>
+      <label style="font-size:12px;color:#6b7280;display:block;margin-bottom:4px;">Für Kunden (optional)</label>
+      <select id="news-client" style="width:100%;background:#0d0f14;border:1px solid #2a2f3d;border-radius:8px;color:#e2e8f0;padding:10px;font-size:14px;">
+        <option value="">Alle Kunden</option>
+        {% for client in clients %}
+        <option value="{{ client.id }}">{{ client.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+  <div style="margin-bottom:14px;">
+    <label style="font-size:12px;color:#6b7280;display:block;margin-bottom:4px;">Kontext / Schwerpunkt (optional)</label>
+    <input type="text" id="news-context" placeholder="z.B. Explosivkraft, Anti-Aging, Schlafqualität..." style="width:100%;background:#0d0f14;border:1px solid #2a2f3d;border-radius:8px;color:#e2e8f0;padding:10px;font-size:14px;">
+  </div>
+  <button onclick="submitGenerate()" style="background:linear-gradient(135deg,#00c8ff,#0070f3);color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:14px;font-weight:600;cursor:pointer;" id="submit-gen-btn">
+    ✨ Generieren
+  </button>
+  <button onclick="document.getElementById('gen-form').style.display='none'" style="background:#0d0f14;border:1px solid #2a2f3d;border-radius:8px;padding:10px 16px;font-size:14px;color:#6b7280;cursor:pointer;margin-left:8px;">
+    Abbrechen
+  </button>
+</div>
+
+<!-- Pending News -->
+{% if pending %}
+<h3 style="font-size:14px;font-weight:600;color:#f59e0b;margin-bottom:12px;">⏳ Wartet auf Freigabe ({{ pending|length }})</h3>
+<div style="display:flex;flex-direction:column;gap:14px;max-width:800px;margin-bottom:28px;">
+  {% for item in pending %}
+  <div style="background:#161a22;border:1px solid rgba(245,158,11,0.3);border-radius:12px;padding:20px;" id="news-{{ item.id }}">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
+      <div style="display:flex;gap:8px;align-items:center;">
+        <span style="background:rgba(0,200,255,0.1);color:#00c8ff;font-size:11px;padding:3px 10px;border-radius:20px;">{{ item.topic }}</span>
+        {% if item.client_name %}<span style="font-size:12px;color:#6b7280;">→ {{ item.client_name }}</span>{% else %}<span style="font-size:12px;color:#6b7280;">→ Alle</span>{% endif %}
+      </div>
+      <span style="font-size:12px;color:#6b7280;">{{ item.created_at[:10] }}</span>
+    </div>
+    <div style="font-size:16px;font-weight:700;margin-bottom:8px;">{{ item.headline }}</div>
+    <div style="font-size:14px;color:#94a3b8;margin-bottom:10px;line-height:1.5;">{{ item.summary }}</div>
+    {% if item.source %}<div style="font-size:12px;color:#6b7280;margin-bottom:10px;">📚 {{ item.source }}</div>{% endif %}
+    {% if item.cta %}<div style="background:rgba(0,200,255,0.05);border-left:3px solid #00c8ff;padding:8px 12px;font-size:13px;color:#94a3b8;margin-bottom:12px;">💡 {{ item.cta }}</div>{% endif %}
+    <div style="display:flex;gap:10px;align-items:center;">
+      <select id="client-sel-{{ item.id }}" style="background:#0d0f14;border:1px solid #2a2f3d;border-radius:6px;color:#e2e8f0;padding:6px 10px;font-size:13px;">
+        <option value="">Alle Kunden</option>
+        {% for client in clients %}
+        <option value="{{ client.id }}" {% if item.client_id == client.id %}selected{% endif %}>{{ client.name }}</option>
+        {% endfor %}
+      </select>
+      <button onclick="approveNews({{ item.id }})" style="background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;">✅ Freigeben</button>
+      <button onclick="deleteNews({{ item.id }})" style="background:#0d0f14;border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:8px 12px;font-size:13px;color:#ef4444;cursor:pointer;">🗑️</button>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<!-- Approved News -->
+{% if approved %}
+<h3 style="font-size:14px;font-weight:600;color:#22c55e;margin-bottom:12px;">✅ Freigegeben ({{ approved|length }})</h3>
+<div style="display:flex;flex-direction:column;gap:10px;max-width:800px;">
+  {% for item in approved %}
+  <div style="background:#161a22;border:1px solid rgba(34,197,94,0.2);border-radius:10px;padding:16px;display:flex;justify-content:space-between;align-items:flex-start;">
+    <div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
+        <span style="background:rgba(0,200,255,0.1);color:#00c8ff;font-size:11px;padding:2px 8px;border-radius:20px;">{{ item.topic }}</span>
+        {% if item.client_name %}<span style="font-size:12px;color:#6b7280;">{{ item.client_name }}</span>{% endif %}
+        <span style="font-size:12px;color:#22c55e;">{{ item.sent_at[:10] if item.sent_at else '' }}</span>
+      </div>
+      <div style="font-size:14px;font-weight:600;">{{ item.headline }}</div>
+    </div>
+    <button onclick="deleteNews({{ item.id }})" style="background:transparent;border:none;color:#6b7280;cursor:pointer;font-size:16px;flex-shrink:0;">🗑️</button>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if not pending and not approved %}
+<div class="empty-state">
+  <div class="empty-icon">📰</div>
+  <h2>Noch keine News</h2>
+  <p>Klicke auf "KI generiert News" um den ersten Artikel zu erstellen.</p>
+</div>
+{% endif %}
+
+<script>
+function generateNews() {
+  document.getElementById('gen-form').style.display = 'block';
+  document.getElementById('gen-form').scrollIntoView({behavior: 'smooth'});
+}
+
+async function submitGenerate() {
+  const btn = document.getElementById('submit-gen-btn');
+  btn.textContent = '⏳ Generiert…';
+  btn.disabled = true;
+  const r = await fetch('/news/generate', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      topic: document.getElementById('news-topic').value,
+      client_id: document.getElementById('news-client').value || null,
+      context: document.getElementById('news-context').value
+    })
+  });
+  if (r.ok) {
+    location.reload();
+  } else {
+    btn.textContent = '✨ Generieren';
+    btn.disabled = false;
+    alert('Fehler beim Generieren.');
+  }
+}
+
+async function approveNews(id) {
+  const clientSel = document.getElementById('client-sel-' + id);
+  const clientId = clientSel ? clientSel.value || null : null;
+  const r = await fetch('/news/' + id + '/approve', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ client_id: clientId })
+  });
+  if (r.ok) location.reload();
+}
+
+async function deleteNews(id) {
+  if (!confirm('News löschen?')) return;
+  await fetch('/news/' + id + '/delete', { method: 'POST' });
+  location.reload();
+}
+</script>
+{% endblock %}

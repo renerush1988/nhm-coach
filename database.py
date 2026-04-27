@@ -232,6 +232,38 @@ def init_db():
         )
     """)
 
+    # ── News / "Wusstest du schon?" ──────────────────────────────────────────
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS news_items (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            client_id   INTEGER DEFAULT NULL,
+            topic       TEXT NOT NULL DEFAULT 'allgemein',
+            headline    TEXT NOT NULL,
+            summary     TEXT NOT NULL,
+            source      TEXT DEFAULT NULL,
+            source_url  TEXT DEFAULT NULL,
+            cta         TEXT DEFAULT NULL,
+            status      TEXT NOT NULL DEFAULT 'draft',
+            coach_approved INTEGER NOT NULL DEFAULT 0,
+            sent_at     TEXT DEFAULT NULL,
+            created_at  TEXT NOT NULL,
+            FOREIGN KEY (client_id) REFERENCES clients(id)
+        )
+    """)
+
+    # ── Scheduler / Reminder ──────────────────────────────────────────────────
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS scheduled_reminders (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            client_id   INTEGER NOT NULL,
+            type        TEXT NOT NULL DEFAULT 'checkin',
+            due_date    TEXT NOT NULL,
+            sent        INTEGER NOT NULL DEFAULT 0,
+            created_at  TEXT NOT NULL,
+            FOREIGN KEY (client_id) REFERENCES clients(id)
+        )
+    """)
+
     conn.commit()
     conn.close()
 
@@ -1033,6 +1065,134 @@ def get_approved_emergency_for_client(client_id):
         SELECT * FROM emergency_requests
         WHERE client_id = ? AND sent_to_client = 1
         ORDER BY created_at DESC LIMIT 10
+    """, (client_id,)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+# ── News / "Wusstest du schon?" ───────────────────────────────────────────────
+
+def create_news_item(headline: str, summary: str, topic: str = "allgemein",
+                     source: str = None, source_url: str = None,
+                     cta: str = None, client_id: int = None) -> int:
+    now = datetime.utcnow().isoformat()
+    conn = get_conn()
+    c = conn.cursor()
+    c.execute("""
+        INSERT INTO news_items (client_id, topic, headline, summary, source, source_url, cta, status, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 'draft', ?)
+    """, (client_id, topic, headline, summary, source, source_url, cta, now))
+    item_id = c.lastrowid
+    conn.commit()
+    conn.close()
+    return item_id
+
+
+def get_news_items(client_id: int = None, status: str = None, limit: int = 20) -> list:
+    conn = get_conn()
+    q = "SELECT n.*, c.name as client_name FROM news_items n LEFT JOIN clients c ON n.client_id = c.id WHERE 1=1"
+    params = []
+    if client_id is not None:
+        q += " AND (n.client_id = ? OR n.client_id IS NULL)"
+        params.append(client_id)
+    if status:
+        q += " AND n.status = ?"
+        params.append(status)
+    q += " ORDER BY n.created_at DESC LIMIT ?"
+    params.append(limit)
+    rows = conn.execute(q, params).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_pending_news() -> list:
+    conn = get_conn()
+    rows = conn.execute("""
+        SELECT n.*, c.name as client_name FROM news_items n
+        LEFT JOIN clients c ON n.client_id = c.id
+        WHERE n.status = 'draft' AND n.coach_approved = 0
+        ORDER BY n.created_at DESC
+    """).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def approve_news_item(item_id: int, client_id: int = None) -> None:
+    now = datetime.utcnow().isoformat()
+    conn = get_conn()
+    if client_id is not None:
+        conn.execute("""
+            UPDATE news_items SET coach_approved=1, status='approved', client_id=?, sent_at=?
+            WHERE id=?
+        """, (client_id, now, item_id))
+    else:
+        conn.execute("""
+            UPDATE news_items SET coach_approved=1, status='approved', sent_at=?
+            WHERE id=?
+        """, (now, item_id))
+    conn.commit()
+    conn.close()
+
+
+def get_approved_news_for_client(client_id: int, limit: int = 10) -> list:
+    conn = get_conn()
+    rows = conn.execute("""
+        SELECT * FROM news_items
+        WHERE (client_id = ? OR client_id IS NULL) AND status = 'approved'
+        ORDER BY sent_at DESC LIMIT ?
+    """, (client_id, limit)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def delete_news_item(item_id: int) -> None:
+    conn = get_conn()
+    conn.execute("DELETE FROM news_items WHERE id=?", (item_id,))
+    conn.commit()
+    conn.close()
+
+
+# ── Scheduler / Reminder ──────────────────────────────────────────────────────
+
+def schedule_reminder(client_id: int, reminder_type: str, due_date: str) -> int:
+    now = datetime.utcnow().isoformat()
+    conn = get_conn()
+    c = conn.cursor()
+    c.execute("""
+        INSERT INTO scheduled_reminders (client_id, type, due_date, sent, created_at)
+        VALUES (?, ?, ?, 0, ?)
+    """, (client_id, reminder_type, due_date, now))
+    rid = c.lastrowid
+    conn.commit()
+    conn.close()
+    return rid
+
+
+def get_due_reminders() -> list:
+    now = datetime.utcnow().strftime("%Y-%m-%d")
+    conn = get_conn()
+    rows = conn.execute("""
+        SELECT r.*, c.name as client_name, c.email as client_email
+        FROM scheduled_reminders r
+        JOIN clients c ON r.client_id = c.id
+        WHERE r.due_date <= ? AND r.sent = 0
+        ORDER BY r.due_date ASC
+    """, (now,)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def mark_reminder_sent(reminder_id: int) -> None:
+    conn = get_conn()
+    conn.execute("UPDATE scheduled_reminders SET sent=1 WHERE id=?", (reminder_id,))
+    conn.commit()
+    conn.close()
+
+
+def get_reminders_for_client(client_id: int) -> list:
+    conn = get_conn()
+    rows = conn.execute("""
+        SELECT * FROM scheduled_reminders WHERE client_id=? ORDER BY due_date ASC
     """, (client_id,)).fetchall()
     conn.close()
     return [dict(r) for r in rows]

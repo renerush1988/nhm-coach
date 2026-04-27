@@ -4,11 +4,33 @@
 {% block content %}
 <div class="page-header">
   <div>
-    <h1 class="page-title">Dashboard</h1>
+    <h1 class="page-title">Commander Dashboard</h1>
     <p class="page-sub">{{ total }} Kunde{{ 'n' if total != 1 else '' }} gesamt</p>
   </div>
   <a href="/client/new" class="btn-primary">
     <span>➕</span> Neuer Kunde
+  </a>
+</div>
+
+<!-- Quick-Nav Bar -->
+<div style="display:flex;gap:10px;margin-bottom:24px;flex-wrap:wrap;">
+  <a href="/assistant" style="flex:1;min-width:120px;background:#161a22;border:1px solid #2a2f3d;border-radius:10px;padding:12px 16px;text-decoration:none;color:#e2e8f0;display:flex;align-items:center;gap:10px;transition:border-color 0.2s;" onmouseover="this.style.borderColor='#00c8ff'" onmouseout="this.style.borderColor='#2a2f3d'">
+    <span style="font-size:20px;">🤖</span>
+    <div><div style="font-size:13px;font-weight:600;">KI-Assistent</div><div style="font-size:11px;color:#6b7280;">Fragen &amp; Ideen</div></div>
+  </a>
+  <a href="/news" style="flex:1;min-width:120px;background:#161a22;border:1px solid #2a2f3d;border-radius:10px;padding:12px 16px;text-decoration:none;color:#e2e8f0;display:flex;align-items:center;gap:10px;transition:border-color 0.2s;position:relative;" onmouseover="this.style.borderColor='#00c8ff'" onmouseout="this.style.borderColor='#2a2f3d'">
+    <span style="font-size:20px;">📰</span>
+    <div><div style="font-size:13px;font-weight:600;">News</div><div style="font-size:11px;color:#6b7280;">Kunden-Snippets</div></div>
+    <span id="news-badge" style="display:none;position:absolute;top:8px;right:8px;background:#f59e0b;color:#000;border-radius:10px;font-size:11px;font-weight:700;padding:2px 7px;">0</span>
+  </a>
+  <a href="/emergencies" style="flex:1;min-width:120px;background:#161a22;border:1px solid rgba(239,68,68,0.3);border-radius:10px;padding:12px 16px;text-decoration:none;color:#e2e8f0;display:flex;align-items:center;gap:10px;transition:border-color 0.2s;position:relative;" onmouseover="this.style.borderColor='#ef4444'" onmouseout="this.style.borderColor='rgba(239,68,68,0.3)'">
+    <span style="font-size:20px;">🆘</span>
+    <div><div style="font-size:13px;font-weight:600;">Notfallanfragen</div><div style="font-size:11px;color:#6b7280;">Warten auf Freigabe</div></div>
+    <span id="emergency-badge" style="display:none;position:absolute;top:8px;right:8px;background:#ef4444;color:#fff;border-radius:10px;font-size:11px;font-weight:700;padding:2px 7px;">0</span>
+  </a>
+  <a href="/knowledge" style="flex:1;min-width:120px;background:#161a22;border:1px solid #2a2f3d;border-radius:10px;padding:12px 16px;text-decoration:none;color:#e2e8f0;display:flex;align-items:center;gap:10px;transition:border-color 0.2s;" onmouseover="this.style.borderColor='#00c8ff'" onmouseout="this.style.borderColor='#2a2f3d'">
+    <span style="font-size:20px;">📚</span>
+    <div><div style="font-size:13px;font-weight:600;">Wissensbasis</div><div style="font-size:11px;color:#6b7280;">Dokumente &amp; Konzept</div></div>
   </a>
 </div>
 
@@ -96,6 +118,23 @@ async function loadUnreadCounts() {
   } catch(e) {}
 }
 loadUnreadCounts();
+
+// Emergency + News badges
+async function loadDashboardBadges() {
+  try {
+    const r = await fetch('/api/dashboard-badges');
+    const data = await r.json();
+    if (data.emergency_count > 0) {
+      const b = document.getElementById('emergency-badge');
+      if (b) { b.textContent = data.emergency_count; b.style.display = 'inline-block'; }
+    }
+    if (data.news_pending > 0) {
+      const b = document.getElementById('news-badge');
+      if (b) { b.textContent = data.news_pending; b.style.display = 'inline-block'; }
+    }
+  } catch(e) {}
+}
+loadDashboardBadges();
 </script>
 {% endblock %}
 {% endblock %}

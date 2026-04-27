@@ -271,3 +271,60 @@ def send_emergency_notification(coach_email: str, client_name: str, topic: str,
     except Exception as e:
         print(f"Emergency email send error: {e}")
         return False
+
+
+def send_renewal_notification(coach_email: str, client: dict) -> bool:
+    """Notify coach that a client's plan is ending and renewal is due."""
+    if not SMTP_USER or not SMTP_PASS:
+        print("SMTP not configured — skipping renewal notification")
+        return False
+
+    name = client.get("name", "")
+    subject = f"⏰ Plan-Verlängerung fällig: {name}"
+
+    html = f"""<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8">
+<style>
+  body {{ font-family: Arial, sans-serif; background: #f8fafc; margin: 0; padding: 0; }}
+  .container {{ max-width: 600px; margin: 0 auto; background: white; }}
+  .header {{ background: #0a0f1e; padding: 24px; text-align: center; }}
+  .header h1 {{ color: #f59e0b; font-size: 20px; margin: 0; }}
+  .body {{ padding: 24px; }}
+  .btn {{ display: inline-block; background: #06b6d4; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; }}
+  .footer {{ background: #f1f5f9; padding: 16px; text-align: center; font-size: 12px; color: #94a3b8; }}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header"><h1>⏰ Plan-Verlängerung fällig</h1></div>
+  <div class="body">
+    <p>Der Coaching-Plan von <strong>{name}</strong> läuft ab.</p>
+    <p>Es ist Zeit, den nächsten Plan zu erstellen oder den bestehenden zu verlängern.</p>
+    <p style="text-align:center;margin-top:20px;">
+      <a href="{os.environ.get('APP_URL', 'https://web-production-f5f68a.up.railway.app')}/client/{client.get('id', '')}" class="btn">
+        Zum Kundenprofil →
+      </a>
+    </p>
+  </div>
+  <div class="footer">NeuroHealthMastery | NHM Coach System</div>
+</div>
+</body>
+</html>"""
+
+    msg = MIMEMultipart("mixed")
+    msg["Subject"] = subject
+    msg["From"] = f"{FROM_NAME} <{FROM_EMAIL}>"
+    msg["To"] = coach_email
+    msg.attach(MIMEText(html, "html", "utf-8"))
+
+    try:
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+            server.ehlo()
+            server.starttls()
+            server.login(SMTP_USER, SMTP_PASS)
+            server.sendmail(FROM_EMAIL, coach_email, msg.as_string())
+        return True
+    except Exception as e:
+        print(f"Renewal email error: {e}")
+        return False

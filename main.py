@@ -34,7 +34,11 @@ from database import (
     save_checkin, get_checkins, get_latest_checkin, flag_checkin_for_ki, get_ki_flagged_checkins,
     save_progress_entry, get_progress_entries, get_streak, update_streak,
     create_emergency_request, get_emergency_request, update_emergency_ai_response,
-    approve_emergency_request, get_pending_emergency_requests, get_approved_emergency_for_client
+    approve_emergency_request, get_pending_emergency_requests, get_approved_emergency_for_client,
+    # Session 3
+    create_news_item, get_news_items, get_pending_news, approve_news_item,
+    get_approved_news_for_client, delete_news_item,
+    schedule_reminder, get_due_reminders, mark_reminder_sent, get_reminders_for_client
 )
 from ai_generator import generate_plan
 from pdf_generator import generate_pdf
@@ -1256,4 +1260,221 @@ async def commander_emergencies(request: Request):
     reqs = get_pending_emergency_requests()
     return templates.TemplateResponse("commander_emergencies.html", {
         "request": request, "requests": reqs
+    })
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SESSION 3: NEWS, SCHEDULER, PORTAL-NEWS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── Portal: News für Kunden ───────────────────────────────────────────────────
+
+@app.get("/portal/news", response_class=HTMLResponse)
+async def portal_news_page(request: Request):
+    client = get_portal_client(request)
+    if not client:
+        return RedirectResponse("/portal/login")
+    news = get_approved_news_for_client(client["id"], limit=20)
+    return templates.TemplateResponse("portal_news.html", {
+        "request": request, "client": client, "news": news
+    })
+
+
+# ── Commander: News-Verwaltung ────────────────────────────────────────────────
+
+@app.get("/news", response_class=HTMLResponse)
+async def commander_news_page(request: Request):
+    if not is_authenticated(request):
+        return RedirectResponse("/login")
+    pending = get_pending_news()
+    approved = get_news_items(status="approved", limit=30)
+    clients = list_clients()
+    return templates.TemplateResponse("commander_news.html", {
+        "request": request, "pending": pending, "approved": approved, "clients": clients
+    })
+
+
+@app.post("/news/generate")
+async def news_generate(request: Request):
+    if not is_authenticated(request):
+        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+    data = await request.json()
+    topic = data.get("topic", "allgemein")
+    client_id = data.get("client_id")
+    if client_id:
+        try:
+            client_id = int(client_id)
+        except Exception:
+            client_id = None
+    context = data.get("context", "")
+
+    try:
+        from openai import OpenAI
+        oai = OpenAI()
+        knowledge = get_all_knowledge_text()
+        system_prompt = f"""Du bist ein Experte für NeuroHealthMastery und erstellst kurze, wissenschaftlich fundierte News-Snippets für Coaching-Kunden.
+Format: JSON mit diesen Feldern:
+- headline: Packende Überschrift (max. 80 Zeichen, auf Deutsch)
+- summary: 2-3 Sätze Zusammenfassung der Studie/Erkenntnis (auf Deutsch, konkret und verständlich)
+- source: Name der Studie/Zeitschrift/Institution
+- source_url: URL falls bekannt, sonst null
+- cta: Kurze Handlungsempfehlung für den Kunden (1 Satz, z.B. "Willst du das in deinen nächsten Plan einbauen?")
+
+Thema: {topic}
+Kontext: {context if context else 'Allgemein'}
+Wissensquellen: {knowledge[:2000] if knowledge else 'Keine'}
+
+Antworte NUR mit dem JSON-Objekt, kein Markdown."""
+
+        resp = oai.chat.completions.create(
+            model="gpt-4.1-mini",
+            messages=[{"role": "user", "content": f"Erstelle einen News-Snippet zum Thema: {topic}. Kontext: {context}"}],
+            system=system_prompt if False else None,  # use messages instead
+            max_tokens=400
+        )
+        # Retry with proper system message
+        resp = oai.chat.completions.create(
+            model="gpt-4.1-mini",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": f"Erstelle einen News-Snippet zum Thema: {topic}. Kontext: {context}"}
+            ],
+            max_tokens=400
+        )
+        raw = resp.choices[0].message.content.strip()
+        # Clean JSON
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+        news_data = json.loads(raw)
+        item_id = create_news_item(
+            headline=news_data.get("headline", "Neue Erkenntnis"),
+            summary=news_data.get("summary", ""),
+            topic=topic,
+            source=news_data.get("source"),
+            source_url=news_data.get("source_url"),
+            cta=news_data.get("cta"),
+            client_id=client_id
+        )
+        return JSONResponse({"ok": True, "id": item_id})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.post("/news/{item_id}/approve")
+async def news_approve(item_id: int, request: Request):
+    if not is_authenticated(request):
+        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+    data = await request.json()
+    client_id = data.get("client_id")
+    if client_id:
+        try:
+            client_id = int(client_id)
+        except Exception:
+            client_id = None
+    approve_news_item(item_id, client_id=client_id)
+    return JSONResponse({"ok": True})
+
+
+@app.post("/news/{item_id}/delete")
+async def news_delete(item_id: int, request: Request):
+    if not is_authenticated(request):
+        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+    delete_news_item(item_id)
+    return JSONResponse({"ok": True})
+
+
+# ── Scheduler: Plan-Verlängerungs-Erinnerung + Check-in-Trigger ──────────────
+
+@app.get("/api/scheduler/run")
+async def scheduler_run(request: Request):
+    """
+    Lightweight scheduler endpoint — called by Railway Cron or external ping.
+    Checks for due reminders and sends notifications.
+    """
+    # Allow both authenticated coach and internal calls (with secret header)
+    secret = request.headers.get("X-Scheduler-Secret", "")
+    scheduler_secret = os.environ.get("SCHEDULER_SECRET", "nhm-scheduler-2025")
+    if not is_authenticated(request) and secret != scheduler_secret:
+        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+
+    due = get_due_reminders()
+    processed = []
+
+    for reminder in due:
+        try:
+            client = get_client(reminder["client_id"])
+            if not client:
+                continue
+
+            if reminder["type"] == "checkin":
+                # Mark reminder sent — client sees banner in portal
+                mark_reminder_sent(reminder["id"])
+                processed.append({"id": reminder["id"], "type": "checkin", "client": reminder["client_name"]})
+
+            elif reminder["type"] == "plan_renewal":
+                # Send renewal notification email to coach
+                coach_email = os.environ.get("COACH_EMAIL", "rene@neurohealthmastery.de")
+                try:
+                    from email_sender import send_renewal_notification
+                    send_renewal_notification(coach_email, client)
+                except Exception as e:
+                    print(f"Renewal email error: {e}")
+                mark_reminder_sent(reminder["id"])
+                processed.append({"id": reminder["id"], "type": "plan_renewal", "client": reminder["client_name"]})
+
+        except Exception as e:
+            print(f"Scheduler error for reminder {reminder['id']}: {e}")
+
+    return JSONResponse({"processed": len(processed), "items": processed})
+
+
+@app.post("/client/{client_id}/schedule-reminder")
+async def create_reminder(client_id: int, request: Request):
+    if not is_authenticated(request):
+        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+    data = await request.json()
+    reminder_type = data.get("type", "checkin")
+    due_date = data.get("due_date")
+    if not due_date:
+        return JSONResponse({"error": "due_date required"}, status_code=400)
+    rid = schedule_reminder(client_id, reminder_type, due_date)
+    return JSONResponse({"ok": True, "id": rid})
+
+
+@app.get("/client/{client_id}/reminders")
+async def get_client_reminders(client_id: int, request: Request):
+    if not is_authenticated(request):
+        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+    reminders = get_reminders_for_client(client_id)
+    return JSONResponse(reminders)
+
+
+# ── Portal: Check-in Banner (due reminder check) ─────────────────────────────
+
+@app.get("/api/portal/checkin-due")
+async def portal_checkin_due(request: Request):
+    """Returns whether a check-in reminder is due for the current portal client."""
+    client = get_portal_client(request)
+    if not client:
+        return JSONResponse({"due": False})
+    due = get_due_reminders()
+    for r in due:
+        if r["client_id"] == client["id"] and r["type"] == "checkin":
+            return JSONResponse({"due": True})
+    return JSONResponse({"due": False})
+
+
+# ── Commander: Dashboard Badges API ──────────────────────────────────────────
+
+@app.get("/api/dashboard-badges")
+async def dashboard_badges(request: Request):
+    if not is_authenticated(request):
+        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+    pending_emergencies = get_pending_emergency_requests()
+    pending_news = get_pending_news()
+    return JSONResponse({
+        "emergency_count": len(pending_emergencies),
+        "news_pending": len(pending_news)
     })
