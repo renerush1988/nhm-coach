@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Check-in – NHM Portal</title>
+<link rel="stylesheet" href="/static/css/style.css">
+<style>
+  :root { --accent: #00c8ff; --bg: #0d0f14; --card: #161a22; --border: #2a2f3d; --text: #e2e8f0; --muted: #6b7280; --gold: #f59e0b; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Inter', -apple-system, sans-serif; }
+  .p-nav { background: #111318; border-bottom: 1px solid var(--border); padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 60px; }
+  .p-nav-brand { font-weight: 700; font-size: 18px; color: var(--accent); }
+  .p-nav-links { display: flex; gap: 4px; }
+  .p-nav-link { display: flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 8px; color: var(--muted); text-decoration: none; font-size: 14px; }
+  .p-nav-link:hover, .p-nav-link.active { background: rgba(0,200,255,0.1); color: var(--accent); }
+  .p-main { max-width: 700px; margin: 0 auto; padding: 32px 24px; }
+  .page-title { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+  .page-sub { color: var(--muted); font-size: 14px; margin-bottom: 28px; }
+
+  .checkin-form { display: flex; flex-direction: column; gap: 20px; }
+  .q-block { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+  .q-label { font-size: 15px; font-weight: 600; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+  .q-hint { font-size: 13px; color: var(--muted); margin-bottom: 12px; }
+
+  /* Star Rating */
+  .star-row { display: flex; gap: 8px; }
+  .star-btn { background: none; border: 2px solid var(--border); border-radius: 8px; color: var(--muted); padding: 8px 14px; font-size: 18px; cursor: pointer; transition: all 0.15s; }
+  .star-btn:hover, .star-btn.active { border-color: var(--gold); color: var(--gold); background: rgba(245,158,11,0.1); }
+
+  /* Slider */
+  .slider-wrap { display: flex; align-items: center; gap: 12px; }
+  .slider { flex: 1; -webkit-appearance: none; height: 6px; border-radius: 3px; background: var(--border); outline: none; }
+  .slider::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%; background: var(--accent); cursor: pointer; }
+  .slider-val { min-width: 36px; text-align: center; font-weight: 700; color: var(--accent); font-size: 16px; }
+
+  /* Textarea */
+  .q-textarea { width: 100%; background: #0d0f14; border: 1px solid var(--border); border-radius: 8px; color: var(--text); padding: 12px 14px; font-size: 14px; resize: vertical; min-height: 80px; font-family: inherit; }
+  .q-textarea:focus { outline: none; border-color: var(--accent); }
+
+  /* Checkbox Tags */
+  .tag-row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .tag-btn { background: #0d0f14; border: 1px solid var(--border); border-radius: 20px; color: var(--muted); padding: 6px 14px; font-size: 13px; cursor: pointer; transition: all 0.15s; }
+  .tag-btn:hover, .tag-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(0,200,255,0.1); }
+
+  .submit-btn { background: linear-gradient(135deg, var(--accent), #0070f3); color: #fff; border: none; border-radius: 10px; padding: 14px; font-size: 16px; font-weight: 600; cursor: pointer; width: 100%; }
+  .submit-btn:hover { opacity: 0.9; }
+
+  .success-box { background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.3); border-radius: 12px; padding: 24px; text-align: center; display: none; }
+  .success-box h2 { font-size: 20px; font-weight: 700; color: #22c55e; margin-bottom: 8px; }
+  .success-box p { color: var(--muted); font-size: 14px; }
+
+  /* History */
+  .history-title { font-size: 16px; font-weight: 600; margin: 28px 0 14px; }
+  .history-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px 18px; margin-bottom: 10px; }
+  .history-date { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+  .history-scores { display: flex; gap: 16px; flex-wrap: wrap; }
+  .score-item { text-align: center; }
+  .score-val { font-size: 18px; font-weight: 700; color: var(--accent); }
+  .score-lbl { font-size: 11px; color: var(--muted); }
+</style>
+</head>
+<body>
+<nav class="p-nav">
+  <div class="p-nav-brand">🧠 NHM Portal</div>
+  <div class="p-nav-links">
+    <a href="/portal/dashboard" class="p-nav-link">🏠 Home</a>
+    <a href="/portal/plan" class="p-nav-link">📋 Plan</a>
+    <a href="/portal/checkin" class="p-nav-link active">📊 Check-in</a>
+    <a href="/portal/notes" class="p-nav-link">📝 Notizen</a>
+    <a href="/portal/chat" class="p-nav-link">💬 Chat</a>
+    <a href="/portal/logout" class="p-nav-link">🚪</a>
+  </div>
+</nav>
+
+<main class="p-main">
+  <div class="page-title">📊 Wöchentlicher Check-in</div>
+  <div class="page-sub">Wie lief die letzte Woche? Dein Feedback hilft Coach René, deinen nächsten Plan noch besser anzupassen.</div>
+
+  <div id="success-box" class="success-box">
+    <h2>✅ Check-in gespeichert!</h2>
+    <p>Dein Feedback wurde an Coach René übermittelt und fließt in deinen nächsten Plan ein.</p>
+    <a href="/portal/dashboard" style="display:inline-block;margin-top:14px;color:var(--accent);font-size:14px;">← Zurück zum Dashboard</a>
+  </div>
+
+  <form class="checkin-form" id="checkin-form">
+
+    <!-- Training -->
+    <div class="q-block">
+      <div class="q-label">💪 Training — Wie war die Intensität?</div>
+      <div class="q-hint">1 = viel zu leicht · 5 = genau richtig · 10 = viel zu schwer</div>
+      <div class="slider-wrap">
+        <span style="font-size:13px;color:var(--muted);">Leicht</span>
+        <input type="range" class="slider" id="training-intensity" min="1" max="10" value="5" oninput="updateSlider(this, 'ti-val')">
+        <span class="slider-val" id="ti-val">5</span>
+        <span style="font-size:13px;color:var(--muted);">Schwer</span>
+      </div>
+    </div>
+
+    <div class="q-block">
+      <div class="q-label">💪 Training — Was hat nicht gepasst?</div>
+      <div class="tag-row" id="training-issues">
+        <button type="button" class="tag-btn" onclick="toggleTag(this)">Zu viele Übungen</button>
+        <button type="button" class="tag-btn" onclick="toggleTag(this)">Zu wenige Übungen</button>
+        <button type="button" class="tag-btn" onclick="toggleTag(this)">Übung macht Schmerzen</button>
+        <button type="button" class="tag-btn" onclick="toggleTag(this)">Zu einseitig</button>
+        <button type="button" class="tag-btn" onclick="toggleTag(this)">Zu wenig Zeit</button>
+        <button type="button" class="tag-btn" onclick="toggleTag(this)">Alles super ✅</button>
+      </div>
+      <textarea class="q-textarea" id="training-note" placeholder="Weitere Anmerkungen zum Training…" style="margin-top:10px;"></textarea>
+    </div>
+
+    <!-- Ernährung -->
+    <div class="q-block">
+      <div class="q-label">🥗 Ernährung — Wie gut hast du den Plan umgesetzt?</div>
+      <div class="q-hint">1 = kaum · 10 = perfekt</div>
+      <div class="slider-wrap">
+        <span style="font-size:13px;color:var(--muted);">Kaum</span>
+        <input type="range" class="slider" id="nutrition-adherence" min="1" max="10" value="7" oninput="updateSlider(this, 'na-val')">
+        <span class="slider-val" id="na-val">7</span>
+        <span style="font-size:13px;color:var(--muted);">Perfekt</span>
+      </div>
+    </div>
+
+    <div class="q-block">
+      <div class="q-label">🥗 Ernährung — Was war schwierig?</div>
+      <div class="tag-row" id="nutrition-issues">
+        <button type="button" class="tag-btn" onclick="toggleTag(this)">Zu viel Essen</button>
+        <button type="button" class="tag-btn" onclick="toggleTag(this)">Zu wenig Energie</button>
+        <button type="button" class="tag-btn" onclick="toggleTag(this)">Kein Hunger morgens</button>
+        <button type="button" class="tag-btn" onclick="toggleTag(this)">Heißhunger abends</button>
+        <button type="button" class="tag-btn" onclick="toggleTag(this)">Keine Zeit zum Kochen</button>
+        <button type="button" class="tag-btn" onclick="toggleTag(this)">Alles super ✅</button>
+      </div>
+      <textarea class="q-textarea" id="nutrition-note" placeholder="Weitere Anmerkungen zur Ernährung…" style="margin-top:10px;"></textarea>
+    </div>
+
+    <!-- Schlaf -->
+    <div class="q-block">
+      <div class="q-label">😴 Schlaf — Durchschnittliche Stunden pro Nacht?</div>
+      <div class="slider-wrap">
+        <span style="font-size:13px;color:var(--muted);">4h</span>
+        <input type="range" class="slider" id="sleep-hours" min="4" max="10" step="0.5" value="7" oninput="updateSlider(this, 'sh-val')">
+        <span class="slider-val" id="sh-val">7h</span>
+        <span style="font-size:13px;color:var(--muted);">10h</span>
+      </div>
+    </div>
+
+    <!-- Stress -->
+    <div class="q-block">
+      <div class="q-label">🧘 Stress — Stresslevel diese Woche?</div>
+      <div class="q-hint">1 = sehr entspannt · 10 = extrem gestresst</div>
+      <div class="slider-wrap">
+        <span style="font-size:13px;color:var(--muted);">Entspannt</span>
+        <input type="range" class="slider" id="stress-level" min="1" max="10" value="4" oninput="updateSlider(this, 'sl-val')">
+        <span class="slider-val" id="sl-val">4</span>
+        <span style="font-size:13px;color:var(--muted);">Gestresst</span>
+      </div>
+    </div>
+
+    <!-- Energie / Motivation -->
+    <div class="q-block">
+      <div class="q-label">⚡ Energie & Motivation — Wie hast du dich gefühlt?</div>
+      <div class="star-row">
+        {% for i in range(1, 6) %}
+        <button type="button" class="star-btn" data-val="{{ i }}" onclick="selectStar(this, 'energy-stars')">{{ i }}⭐</button>
+        {% endfor %}
+      </div>
+      <input type="hidden" id="energy-stars" value="3">
+    </div>
+
+    <!-- Allgemein -->
+    <div class="q-block">
+      <div class="q-label">💬 Sonstiges — Was möchtest du deinem Coach mitteilen?</div>
+      <textarea class="q-textarea" id="general-note" placeholder="Fragen, Wünsche, Probleme, Erfolge… alles ist willkommen!"></textarea>
+    </div>
+
+    <button type="button" class="submit-btn" onclick="submitCheckin()">Check-in absenden →</button>
+  </form>
+
+  <!-- History -->
+  {% if checkins %}
+  <div class="history-title">📅 Letzte Check-ins</div>
+  {% for ci in checkins %}
+  {% set ans = ci.answers if ci.answers is mapping else {} %}
+  <div class="history-card">
+    <div class="history-date">{{ ci.created_at[:10] }}</div>
+    <div class="history-scores">
+      {% if ans.training_intensity is defined %}
+      <div class="score-item"><div class="score-val">{{ ans.training_intensity }}/10</div><div class="score-lbl">Training</div></div>
+      {% endif %}
+      {% if ans.nutrition_adherence is defined %}
+      <div class="score-item"><div class="score-val">{{ ans.nutrition_adherence }}/10</div><div class="score-lbl">Ernährung</div></div>
+      {% endif %}
+      {% if ans.sleep_hours is defined %}
+      <div class="score-item"><div class="score-val">{{ ans.sleep_hours }}h</div><div class="score-lbl">Schlaf</div></div>
+      {% endif %}
+      {% if ans.stress_level is defined %}
+      <div class="score-item"><div class="score-val">{{ ans.stress_level }}/10</div><div class="score-lbl">Stress</div></div>
+      {% endif %}
+    </div>
+    {% if ci.summary %}
+    <p style="font-size:13px;color:var(--muted);margin-top:8px;">{{ ci.summary }}</p>
+    {% endif %}
+  </div>
+  {% endfor %}
+  {% endif %}
+
+</main>
+
+<script>
+function updateSlider(el, valId) {
+  const val = parseFloat(el.value);
+  const display = document.getElementById(valId);
+  display.textContent = el.id === 'sleep-hours' ? val + 'h' : val;
+}
+
+function toggleTag(btn) {
+  btn.classList.toggle('active');
+}
+
+function selectStar(btn, hiddenId) {
+  const val = btn.dataset.val;
+  document.getElementById(hiddenId).value = val;
+  btn.closest('.star-row').querySelectorAll('.star-btn').forEach(b => {
+    b.classList.toggle('active', parseInt(b.dataset.val) <= parseInt(val));
+  });
+}
+
+// Init star display
+document.querySelectorAll('.star-row').forEach(row => {
+  const hidden = row.nextElementSibling;
+  if (hidden) {
+    const val = parseInt(hidden.value);
+    row.querySelectorAll('.star-btn').forEach(b => {
+      if (parseInt(b.dataset.val) <= val) b.classList.add('active');
+    });
+  }
+});
+
+async function submitCheckin() {
+  const getActiveTags = (containerId) =>
+    [...document.querySelectorAll(`#${containerId} .tag-btn.active`)].map(b => b.textContent);
+
+  const answers = {
+    training_intensity: parseInt(document.getElementById('training-intensity').value),
+    training_issues: getActiveTags('training-issues'),
+    training_note: document.getElementById('training-note').value,
+    nutrition_adherence: parseInt(document.getElementById('nutrition-adherence').value),
+    nutrition_issues: getActiveTags('nutrition-issues'),
+    nutrition_note: document.getElementById('nutrition-note').value,
+    sleep_hours: parseFloat(document.getElementById('sleep-hours').value),
+    stress_level: parseInt(document.getElementById('stress-level').value),
+    energy_stars: parseInt(document.getElementById('energy-stars').value),
+    general_note: document.getElementById('general-note').value,
+  };
+
+  const r = await fetch('/portal/checkin', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(answers)
+  });
+
+  if (r.ok) {
+    document.getElementById('checkin-form').style.display = 'none';
+    document.getElementById('success-box').style.display = 'block';
+    window.scrollTo(0, 0);
+  }
+}
+</script>
+</body>
+</html>

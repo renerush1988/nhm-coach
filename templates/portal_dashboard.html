@@ -79,13 +79,16 @@
   <div class="p-nav-links">
     <a href="/portal/dashboard" class="p-nav-link active">🏠 Home</a>
     {% if plan %}
-    <a href="/portal/plan" class="p-nav-link">📋 Mein Plan</a>
+    <a href="/portal/plan" class="p-nav-link">📋 Plan</a>
     {% endif %}
+    <a href="/portal/progress" class="p-nav-link">📈 Fortschritt</a>
+    <a href="/portal/checkin" class="p-nav-link">📊 Check-in</a>
     <a href="/portal/notes" class="p-nav-link">📝 Notizen</a>
     <a href="/portal/chat" class="p-nav-link">
       💬 Chat
       {% if unread_count > 0 %}<span class="badge">{{ unread_count }}</span>{% endif %}
     </a>
+    <a href="/portal/emergency" class="p-nav-link" style="color:#ef4444;">🆘</a>
     <a href="/portal/logout" class="p-nav-link">🚪</a>
   </div>
 </nav>
@@ -151,6 +154,30 @@
         {% endif %}
       {% endif %}
     {% endfor %}
+  </div>
+
+  <!-- Quick Actions Row -->
+  <div style="display:flex;gap:12px;margin-bottom:28px;flex-wrap:wrap;">
+    <a href="/portal/checkin" style="flex:1;min-width:140px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;text-align:center;text-decoration:none;color:var(--text);transition:all 0.2s;" onmouseover="this.style.borderColor='#00c8ff'" onmouseout="this.style.borderColor='#2a2f3d'">
+      <div style="font-size:24px;margin-bottom:6px;">📊</div>
+      <div style="font-size:13px;font-weight:600;">Wöchentlicher Check-in</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px;">Feedback geben</div>
+    </a>
+    <a href="/portal/progress" style="flex:1;min-width:140px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;text-align:center;text-decoration:none;color:var(--text);transition:all 0.2s;" onmouseover="this.style.borderColor='#22c55e'" onmouseout="this.style.borderColor='#2a2f3d'">
+      <div style="font-size:24px;margin-bottom:6px;">📈</div>
+      <div style="font-size:13px;font-weight:600;">Fortschritt tracken</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px;">Gewicht &amp; Streak</div>
+    </a>
+    <a href="/portal/chat" style="flex:1;min-width:140px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;text-align:center;text-decoration:none;color:var(--text);transition:all 0.2s;" onmouseover="this.style.borderColor='#00c8ff'" onmouseout="this.style.borderColor='#2a2f3d'">
+      <div style="font-size:24px;margin-bottom:6px;">💬</div>
+      <div style="font-size:13px;font-weight:600;">Coach schreiben</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px;">{% if unread_count > 0 %}<span style="color:#ef4444;">{{ unread_count }} neue Nachrichten</span>{% else %}Chat öffnen{% endif %}</div>
+    </a>
+    <a href="/portal/emergency" style="flex:1;min-width:140px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);border-radius:12px;padding:16px;text-align:center;text-decoration:none;color:#ef4444;transition:all 0.2s;" onmouseover="this.style.borderColor='#ef4444'" onmouseout="this.style.borderColor='rgba(239,68,68,0.3)'">
+      <div style="font-size:24px;margin-bottom:6px;">🆘</div>
+      <div style="font-size:13px;font-weight:600;">Notfall-Hilfe</div>
+      <div style="font-size:11px;color:rgba(239,68,68,0.7);margin-top:2px;">Dringendes Problem?</div>
+    </a>
   </div>
 
   <!-- Bottom Grid: Notes + Chat -->

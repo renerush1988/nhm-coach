@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fortschritt – NHM Portal</title>
+<link rel="stylesheet" href="/static/css/style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root { --accent: #00c8ff; --bg: #0d0f14; --card: #161a22; --border: #2a2f3d; --text: #e2e8f0; --muted: #6b7280; --gold: #f59e0b; --green: #22c55e; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Inter', -apple-system, sans-serif; }
+  .p-nav { background: #111318; border-bottom: 1px solid var(--border); padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 60px; }
+  .p-nav-brand { font-weight: 700; font-size: 18px; color: var(--accent); }
+  .p-nav-links { display: flex; gap: 4px; }
+  .p-nav-link { display: flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 8px; color: var(--muted); text-decoration: none; font-size: 14px; }
+  .p-nav-link:hover, .p-nav-link.active { background: rgba(0,200,255,0.1); color: var(--accent); }
+  .p-main { max-width: 900px; margin: 0 auto; padding: 32px 24px; }
+  .page-title { font-size: 22px; font-weight: 700; margin-bottom: 24px; }
+
+  /* Streak Cards */
+  .streak-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 16px; margin-bottom: 28px; }
+  .streak-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; text-align: center; }
+  .streak-card.fire { border-color: #f97316; background: rgba(249,115,22,0.08); }
+  .streak-card.gold { border-color: var(--gold); background: rgba(245,158,11,0.08); }
+  .streak-icon { font-size: 28px; margin-bottom: 6px; }
+  .streak-val { font-size: 28px; font-weight: 800; color: var(--accent); }
+  .streak-card.fire .streak-val { color: #f97316; }
+  .streak-card.gold .streak-val { color: var(--gold); }
+  .streak-lbl { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  /* Milestones */
+  .milestones-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 28px; }
+  .milestone { display: flex; align-items: center; gap: 8px; background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 6px 14px; font-size: 13px; }
+  .milestone.achieved { border-color: var(--gold); background: rgba(245,158,11,0.1); color: var(--gold); }
+  .milestone.locked { opacity: 0.4; }
+
+  /* Log Form */
+  .log-form { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 28px; }
+  .log-form h3 { font-size: 15px; font-weight: 600; margin-bottom: 14px; }
+  .log-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin-bottom: 12px; }
+  .log-field label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  .log-field input { width: 100%; background: #0d0f14; border: 1px solid var(--border); border-radius: 8px; color: var(--text); padding: 10px 12px; font-size: 14px; }
+  .log-field input:focus { outline: none; border-color: var(--accent); }
+  .log-btn { background: linear-gradient(135deg, var(--accent), #0070f3); color: #fff; border: none; border-radius: 8px; padding: 10px 20px; font-size: 14px; font-weight: 600; cursor: pointer; }
+  .log-btn:hover { opacity: 0.9; }
+  .log-note { width: 100%; background: #0d0f14; border: 1px solid var(--border); border-radius: 8px; color: var(--text); padding: 10px 12px; font-size: 14px; margin-bottom: 12px; }
+  .log-note:focus { outline: none; border-color: var(--accent); }
+
+  /* Chart */
+  .chart-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+  .chart-card h3 { font-size: 15px; font-weight: 600; margin-bottom: 14px; }
+  .chart-wrap { position: relative; height: 200px; }
+
+  /* Table */
+  .entries-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .entries-table th { padding: 8px 12px; text-align: left; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
+  .entries-table td { padding: 10px 12px; border-bottom: 1px solid rgba(42,47,61,0.5); }
+  .entries-table tr:last-child td { border-bottom: none; }
+</style>
+</head>
+<body>
+<nav class="p-nav">
+  <div class="p-nav-brand">🧠 NHM Portal</div>
+  <div class="p-nav-links">
+    <a href="/portal/dashboard" class="p-nav-link">🏠 Home</a>
+    <a href="/portal/plan" class="p-nav-link">📋 Plan</a>
+    <a href="/portal/progress" class="p-nav-link active">📈 Fortschritt</a>
+    <a href="/portal/checkin" class="p-nav-link">📊 Check-in</a>
+    <a href="/portal/chat" class="p-nav-link">💬 Chat</a>
+    <a href="/portal/logout" class="p-nav-link">🚪</a>
+  </div>
+</nav>
+
+<main class="p-main">
+  <div class="page-title">📈 Mein Fortschritt</div>
+
+  <!-- Streak -->
+  <div class="streak-grid">
+    <div class="streak-card fire">
+      <div class="streak-icon">🔥</div>
+      <div class="streak-val">{{ streak.current_streak }}</div>
+      <div class="streak-lbl">Tage Streak</div>
+    </div>
+    <div class="streak-card gold">
+      <div class="streak-icon">🏆</div>
+      <div class="streak-val">{{ streak.longest_streak }}</div>
+      <div class="streak-lbl">Bester Streak</div>
+    </div>
+    <div class="streak-card">
+      <div class="streak-icon">💪</div>
+      <div class="streak-val">{{ streak.total_sessions }}</div>
+      <div class="streak-lbl">Einheiten gesamt</div>
+    </div>
+    {% if entries %}
+    <div class="streak-card">
+      <div class="streak-icon">⚖️</div>
+      <div class="streak-val">{{ entries[0].weight_kg or '—' }}</div>
+      <div class="streak-lbl">Aktuelles Gewicht (kg)</div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Milestones -->
+  <div class="milestones-row">
+    {% set total = streak.total_sessions %}
+    <div class="milestone {% if total >= 1 %}achieved{% else %}locked{% endif %}">
+      {% if total >= 1 %}🎉{% else %}🔒{% endif %} Erste Einheit
+    </div>
+    <div class="milestone {% if total >= 5 %}achieved{% else %}locked{% endif %}">
+      {% if total >= 5 %}⭐{% else %}🔒{% endif %} 5 Einheiten
+    </div>
+    <div class="milestone {% if total >= 10 %}achieved{% else %}locked{% endif %}">
+      {% if total >= 10 %}🔥{% else %}🔒{% endif %} 10 Einheiten
+    </div>
+    <div class="milestone {% if total >= 20 %}achieved{% else %}locked{% endif %}">
+      {% if total >= 20 %}💪{% else %}🔒{% endif %} 20 Einheiten
+    </div>
+    <div class="milestone {% if total >= 50 %}achieved{% else %}locked{% endif %}">
+      {% if total >= 50 %}🏆{% else %}🔒{% endif %} 50 Einheiten
+    </div>
+    <div class="milestone {% if streak.current_streak >= 7 %}achieved{% else %}locked{% endif %}">
+      {% if streak.current_streak >= 7 %}🔥{% else %}🔒{% endif %} 7-Tage Streak
+    </div>
+    <div class="milestone {% if streak.current_streak >= 30 %}achieved{% else %}locked{% endif %}">
+      {% if streak.current_streak >= 30 %}🌟{% else %}🔒{% endif %} 30-Tage Streak
+    </div>
+  </div>
+
+  <!-- Log Form -->
+  <div class="log-form">
+    <h3>➕ Heutige Einheit eintragen</h3>
+    <div class="log-grid">
+      <div class="log-field">
+        <label>Datum</label>
+        <input type="date" id="log-date" value="{{ today }}">
+      </div>
+      <div class="log-field">
+        <label>Gewicht (kg)</label>
+        <input type="number" id="log-weight" step="0.1" placeholder="z.B. 82.5">
+      </div>
+      <div class="log-field">
+        <label>Körperfett (%)</label>
+        <input type="number" id="log-fat" step="0.1" placeholder="z.B. 18.5">
+      </div>
+      <div class="log-field">
+        <label>Energie (1–10)</label>
+        <input type="number" id="log-energy" min="1" max="10" placeholder="z.B. 8">
+      </div>
+      <div class="log-field">
+        <label>Schlaf (Stunden)</label>
+        <input type="number" id="log-sleep" step="0.5" min="0" max="12" placeholder="z.B. 7.5">
+      </div>
+    </div>
+    <input class="log-note" type="text" id="log-note" placeholder="Notiz (optional)…">
+    <button class="log-btn" onclick="logProgress()">✅ Einheit speichern + Streak zählen</button>
+  </div>
+
+  <!-- Chart -->
+  {% if entries and entries|length > 1 %}
+  <div class="chart-card">
+    <h3>⚖️ Gewichtsverlauf</h3>
+    <div class="chart-wrap">
+      <canvas id="weight-chart"></canvas>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Table -->
+  {% if entries %}
+  <div class="chart-card">
+    <h3>📅 Einträge</h3>
+    <table class="entries-table">
+      <thead>
+        <tr>
+          <th>Datum</th>
+          <th>Gewicht</th>
+          <th>KF%</th>
+          <th>Energie</th>
+          <th>Schlaf</th>
+          <th>Notiz</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in entries %}
+        <tr>
+          <td>{{ e.date }}</td>
+          <td>{{ e.weight_kg or '—' }} kg</td>
+          <td>{{ e.body_fat or '—' }}%</td>
+          <td>{{ e.energy or '—' }}/10</td>
+          <td>{{ e.sleep_hours or '—' }}h</td>
+          <td style="color:var(--muted);">{{ e.note or '' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+</main>
+
+<script>
+{% if entries and entries|length > 1 %}
+const labels = {{ entries | map(attribute='date') | list | reverse | tojson }};
+const weights = {{ entries | map(attribute='weight_kg') | list | reverse | tojson }};
+
+const ctx = document.getElementById('weight-chart').getContext('2d');
+new Chart(ctx, {
+  type: 'line',
+  data: {
+    labels,
+    datasets: [{
+      label: 'Gewicht (kg)',
+      data: weights,
+      borderColor: '#00c8ff',
+      backgroundColor: 'rgba(0,200,255,0.1)',
+      borderWidth: 2,
+      pointBackgroundColor: '#00c8ff',
+      pointRadius: 4,
+      tension: 0.3,
+      fill: true,
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { color: '#1e2330' }, ticks: { color: '#6b7280', maxTicksLimit: 8 } },
+      y: { grid: { color: '#1e2330' }, ticks: { color: '#6b7280' } }
+    }
+  }
+});
+{% endif %}
+
+async function logProgress() {
+  const data = {
+    date: document.getElementById('log-date').value,
+    weight_kg: parseFloat(document.getElementById('log-weight').value) || null,
+    body_fat: parseFloat(document.getElementById('log-fat').value) || null,
+    energy: parseInt(document.getElementById('log-energy').value) || null,
+    sleep_hours: parseFloat(document.getElementById('log-sleep').value) || null,
+    note: document.getElementById('log-note').value,
+    count_streak: true,
+  };
+  const r = await fetch('/portal/progress', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(data)
+  });
+  if (r.ok) {
+    const btn = document.querySelector('.log-btn');
+    btn.textContent = '✅ Gespeichert! Seite wird aktualisiert…';
+    setTimeout(() => location.reload(), 1200);
+  }
+}
+
+// Set today's date
+document.getElementById('log-date').value = new Date().toISOString().split('T')[0];
+</script>
+</body>
+</html>

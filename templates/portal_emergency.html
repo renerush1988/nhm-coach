@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Notfall – NHM Portal</title>
+<link rel="stylesheet" href="/static/css/style.css">
+<style>
+  :root { --accent: #00c8ff; --bg: #0d0f14; --card: #161a22; --border: #2a2f3d; --text: #e2e8f0; --muted: #6b7280; --red: #ef4444; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Inter', -apple-system, sans-serif; }
+  .p-nav { background: #111318; border-bottom: 1px solid var(--border); padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 60px; }
+  .p-nav-brand { font-weight: 700; font-size: 18px; color: var(--accent); }
+  .p-nav-links { display: flex; gap: 4px; }
+  .p-nav-link { display: flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 8px; color: var(--muted); text-decoration: none; font-size: 14px; }
+  .p-nav-link:hover, .p-nav-link.active { background: rgba(0,200,255,0.1); color: var(--accent); }
+  .p-main { max-width: 700px; margin: 0 auto; padding: 32px 24px; }
+
+  .emergency-header { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); border-radius: 14px; padding: 24px; text-align: center; margin-bottom: 28px; }
+  .emergency-icon { font-size: 48px; margin-bottom: 10px; }
+  .emergency-title { font-size: 22px; font-weight: 800; color: var(--red); margin-bottom: 6px; }
+  .emergency-sub { font-size: 14px; color: var(--muted); }
+
+  .topic-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; margin-bottom: 20px; }
+  .topic-btn { background: var(--card); border: 2px solid var(--border); border-radius: 10px; padding: 14px 10px; text-align: center; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.15s; }
+  .topic-btn:hover, .topic-btn.active { border-color: var(--red); background: rgba(239,68,68,0.1); color: var(--red); }
+  .topic-icon { font-size: 24px; display: block; margin-bottom: 4px; }
+
+  .msg-area { width: 100%; background: #0d0f14; border: 1px solid var(--border); border-radius: 10px; color: var(--text); padding: 14px; font-size: 14px; resize: vertical; min-height: 120px; font-family: inherit; margin-bottom: 16px; }
+  .msg-area:focus { outline: none; border-color: var(--red); }
+
+  .send-btn { background: linear-gradient(135deg, var(--red), #dc2626); color: #fff; border: none; border-radius: 10px; padding: 14px; font-size: 16px; font-weight: 700; cursor: pointer; width: 100%; }
+  .send-btn:hover { opacity: 0.9; }
+  .send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .info-box { background: rgba(0,200,255,0.05); border: 1px solid rgba(0,200,255,0.2); border-radius: 10px; padding: 14px 16px; font-size: 13px; color: var(--muted); margin-bottom: 20px; }
+
+  .success-box { background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.3); border-radius: 12px; padding: 24px; text-align: center; display: none; }
+  .success-box h2 { font-size: 20px; font-weight: 700; color: #22c55e; margin-bottom: 8px; }
+
+  /* Previous answers */
+  .prev-title { font-size: 16px; font-weight: 600; margin: 28px 0 14px; }
+  .prev-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 12px; }
+  .prev-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .prev-topic { font-size: 12px; font-weight: 600; background: rgba(239,68,68,0.1); color: var(--red); padding: 3px 10px; border-radius: 20px; }
+  .prev-date { font-size: 12px; color: var(--muted); }
+  .prev-msg { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
+  .prev-answer { font-size: 14px; background: rgba(0,200,255,0.05); border-left: 3px solid var(--accent); padding: 10px 14px; border-radius: 0 8px 8px 0; }
+  .pending-badge { background: rgba(245,158,11,0.1); color: #f59e0b; font-size: 12px; padding: 3px 10px; border-radius: 20px; }
+</style>
+</head>
+<body>
+<nav class="p-nav">
+  <div class="p-nav-brand">🧠 NHM Portal</div>
+  <div class="p-nav-links">
+    <a href="/portal/dashboard" class="p-nav-link">🏠 Home</a>
+    <a href="/portal/plan" class="p-nav-link">📋 Plan</a>
+    <a href="/portal/progress" class="p-nav-link">📈 Fortschritt</a>
+    <a href="/portal/checkin" class="p-nav-link">📊 Check-in</a>
+    <a href="/portal/chat" class="p-nav-link">💬 Chat</a>
+    <a href="/portal/logout" class="p-nav-link">🚪</a>
+  </div>
+</nav>
+
+<main class="p-main">
+
+  <div class="emergency-header">
+    <div class="emergency-icon">🆘</div>
+    <div class="emergency-title">Notfall-Hilfe</div>
+    <div class="emergency-sub">Hast du ein dringendes Problem? Coach René wird sofort benachrichtigt und antwortet so schnell wie möglich.</div>
+  </div>
+
+  <div id="success-box" class="success-box">
+    <h2>✅ Anfrage gesendet!</h2>
+    <p style="color:var(--muted);font-size:14px;margin-top:6px;">Coach René wurde benachrichtigt. Du erhältst die Antwort hier sobald sie freigegeben wurde.</p>
+    <a href="/portal/dashboard" style="display:inline-block;margin-top:14px;color:var(--accent);font-size:14px;">← Zurück zum Dashboard</a>
+  </div>
+
+  <div id="request-form">
+    <p style="font-size:14px;font-weight:600;margin-bottom:12px;">1. Wähle ein Thema:</p>
+    <div class="topic-grid">
+      <div class="topic-btn" onclick="selectTopic(this, 'training')"><span class="topic-icon">💪</span>Training</div>
+      <div class="topic-btn" onclick="selectTopic(this, 'ernaehrung')"><span class="topic-icon">🥗</span>Ernährung</div>
+      <div class="topic-btn" onclick="selectTopic(this, 'schlaf')"><span class="topic-icon">😴</span>Schlaf</div>
+      <div class="topic-btn" onclick="selectTopic(this, 'stress')"><span class="topic-icon">🧘</span>Stress</div>
+      <div class="topic-btn" onclick="selectTopic(this, 'supplements')"><span class="topic-icon">💊</span>Supplements</div>
+      <div class="topic-btn" onclick="selectTopic(this, 'schmerzen')"><span class="topic-icon">🩹</span>Schmerzen</div>
+      <div class="topic-btn" onclick="selectTopic(this, 'motivation')"><span class="topic-icon">🔥</span>Motivation</div>
+      <div class="topic-btn" onclick="selectTopic(this, 'allgemein')"><span class="topic-icon">❓</span>Sonstiges</div>
+    </div>
+    <input type="hidden" id="selected-topic" value="">
+
+    <p style="font-size:14px;font-weight:600;margin-bottom:10px;margin-top:20px;">2. Beschreibe dein Problem:</p>
+    <textarea class="msg-area" id="emergency-msg" placeholder="Was ist passiert? Je mehr Details du angibst, desto besser kann Coach René helfen…"></textarea>
+
+    <div class="info-box">
+      ℹ️ Deine Anfrage wird von der KI analysiert. Coach René prüft die Antwort persönlich bevor sie an dich gesendet wird. Typische Antwortzeit: 1–24 Stunden.
+    </div>
+
+    <button class="send-btn" id="send-btn" onclick="sendEmergency()">🆘 Anfrage senden</button>
+  </div>
+
+  <!-- Previous requests -->
+  {% if requests %}
+  <div class="prev-title">📋 Meine Anfragen</div>
+  {% for req in requests %}
+  <div class="prev-card">
+    <div class="prev-meta">
+      <span class="prev-topic">{{ req.topic }}</span>
+      {% if req.status == 'awaiting_approval' %}
+      <span class="pending-badge">⏳ Wird geprüft</span>
+      {% elif req.status == 'approved' %}
+      <span style="font-size:12px;color:#22c55e;">✅ Beantwortet</span>
+      {% endif %}
+      <span class="prev-date">{{ req.created_at[:10] }}</span>
+    </div>
+    <div class="prev-msg">{{ req.message }}</div>
+    {% if req.sent_to_client and (req.coach_edit or req.ai_response) %}
+    <div class="prev-answer">
+      <strong style="font-size:12px;color:var(--accent);">Coach René:</strong><br>
+      {{ req.coach_edit or req.ai_response }}
+    </div>
+    {% endif %}
+  </div>
+  {% endfor %}
+  {% endif %}
+
+</main>
+
+<script>
+let selectedTopic = '';
+
+function selectTopic(btn, topic) {
+  document.querySelectorAll('.topic-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  selectedTopic = topic;
+  document.getElementById('selected-topic').value = topic;
+}
+
+async function sendEmergency() {
+  const msg = document.getElementById('emergency-msg').value.trim();
+  if (!selectedTopic) { alert('Bitte wähle ein Thema aus.'); return; }
+  if (!msg) { alert('Bitte beschreibe dein Problem.'); return; }
+
+  const btn = document.getElementById('send-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Wird gesendet…';
+
+  const r = await fetch('/portal/emergency', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ topic: selectedTopic, message: msg })
+  });
+
+  if (r.ok) {
+    document.getElementById('request-form').style.display = 'none';
+    document.getElementById('success-box').style.display = 'block';
+    window.scrollTo(0, 0);
+  } else {
+    btn.disabled = false;
+    btn.textContent = '🆘 Anfrage senden';
+    alert('Fehler beim Senden. Bitte versuche es erneut.');
+  }
+}
+</script>
+</body>
+</html>

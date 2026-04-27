@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Notfall-Freigabe – NHM Coach{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">🆘 Notfall-Freigabe</h1>
+    <p class="page-sub">{{ client.name }} — {{ req.topic }} — {{ req.created_at[:10] }}</p>
+  </div>
+  <a href="/" class="btn-secondary">← Dashboard</a>
+</div>
+
+<div style="max-width:700px;display:flex;flex-direction:column;gap:20px;">
+
+  <div style="background:#161a22;border:1px solid #2a2f3d;border-radius:12px;padding:20px;">
+    <h3 style="font-size:14px;color:#6b7280;margin-bottom:10px;">KUNDEN-NACHRICHT</h3>
+    <p style="font-size:15px;line-height:1.6;">{{ req.message }}</p>
+  </div>
+
+  <div style="background:rgba(0,200,255,0.05);border:1px solid rgba(0,200,255,0.2);border-radius:12px;padding:20px;">
+    <h3 style="font-size:14px;color:#00c8ff;margin-bottom:10px;">🤖 KI-ANTWORT (ENTWURF)</h3>
+    {% if req.ai_response %}
+    <p style="font-size:15px;line-height:1.6;" id="ai-text">{{ req.ai_response }}</p>
+    {% else %}
+    <p style="color:#6b7280;font-size:14px;">KI-Antwort wird noch generiert…</p>
+    {% endif %}
+  </div>
+
+  <div style="background:#161a22;border:1px solid #2a2f3d;border-radius:12px;padding:20px;">
+    <h3 style="font-size:14px;color:#6b7280;margin-bottom:10px;">✏️ DEINE ANPASSUNG (optional)</h3>
+    <textarea id="coach-edit" style="width:100%;background:#0d0f14;border:1px solid #2a2f3d;border-radius:8px;color:#e2e8f0;padding:12px;font-size:14px;resize:vertical;min-height:120px;font-family:inherit;" placeholder="Lass das Feld leer um die KI-Antwort unverändert zu senden, oder schreibe hier deine eigene Antwort…">{{ req.ai_response or '' }}</textarea>
+  </div>
+
+  {% if req.coach_approved %}
+  <div style="background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);border-radius:10px;padding:14px;text-align:center;color:#22c55e;">
+    ✅ Bereits freigegeben und an Kunden gesendet.
+  </div>
+  {% else %}
+  <div style="display:flex;gap:12px;">
+    <button onclick="approveRequest()" style="flex:1;background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;border:none;border-radius:10px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;">
+      ✅ Freigeben & an Kunden senden
+    </button>
+    <a href="/" style="background:#161a22;border:1px solid #2a2f3d;border-radius:10px;padding:14px 20px;color:#6b7280;text-decoration:none;font-size:14px;display:flex;align-items:center;">
+      Abbrechen
+    </a>
+  </div>
+  {% endif %}
+
+</div>
+
+<script>
+async function approveRequest() {
+  const edit = document.getElementById('coach-edit').value.trim();
+  const r = await fetch('/emergency/{{ req.id }}/approve', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ coach_edit: edit })
+  });
+  if (r.ok) {
+    document.querySelector('[onclick="approveRequest()"]').textContent = '✅ Freigegeben!';
+    document.querySelector('[onclick="approveRequest()"]').disabled = true;
+  }
+}
+</script>
+{% endblock %}

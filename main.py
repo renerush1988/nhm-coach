@@ -29,7 +29,12 @@ from database import (
     add_client_note, get_client_notes, flag_client_note, delete_client_note,
     save_exercise_weight, get_exercise_weights,
     add_client_message, get_client_messages, mark_messages_read, get_unread_count,
-    get_released_pillars, set_released_pillars
+    get_released_pillars, set_released_pillars,
+    # Session 2
+    save_checkin, get_checkins, get_latest_checkin, flag_checkin_for_ki, get_ki_flagged_checkins,
+    save_progress_entry, get_progress_entries, get_streak, update_streak,
+    create_emergency_request, get_emergency_request, update_emergency_ai_response,
+    approve_emergency_request, get_pending_emergency_requests, get_approved_emergency_for_client
 )
 from ai_generator import generate_plan
 from pdf_generator import generate_pdf
@@ -979,3 +984,276 @@ async def get_all_unread_counts(request: Request):
     clients = list_clients()
     counts = {str(c["id"]): get_unread_count(c["id"]) for c in clients}
     return JSONResponse(counts)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SESSION 2: CHECK-IN, PROGRESS, EMERGENCY, AUDIO
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def get_portal_client(request: Request):
+    """Return client dict from portal session cookie, or None."""
+    token = request.cookies.get("nhm_portal_session")
+    if not token:
+        return None
+    try:
+        client_id = serializer.loads(token, max_age=86400 * 30, salt="portal")
+        return get_client(client_id)
+    except Exception:
+        return None
+
+
+# ── Check-in ─────────────────────────────────────────────────────────────────
+
+@app.get("/portal/checkin", response_class=HTMLResponse)
+async def portal_checkin_page(request: Request):
+    client = get_portal_client(request)
+    if not client:
+        return RedirectResponse("/portal/login")
+    checkins = get_checkins(client["id"], limit=5)
+    for ci in checkins:
+        if isinstance(ci.get("answers"), str):
+            try:
+                ci["answers"] = json.loads(ci["answers"])
+            except Exception:
+                ci["answers"] = {}
+    return templates.TemplateResponse("portal_checkin.html", {
+        "request": request, "client": client, "checkins": checkins
+    })
+
+
+@app.post("/portal/checkin")
+async def portal_checkin_submit(request: Request):
+    client = get_portal_client(request)
+    if not client:
+        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+    answers = await request.json()
+    # Build a short KI summary
+    summary_parts = []
+    if answers.get("training_intensity"):
+        summary_parts.append(f"Training-Intensität: {answers['training_intensity']}/10")
+    if answers.get("nutrition_adherence"):
+        summary_parts.append(f"Ernährungs-Umsetzung: {answers['nutrition_adherence']}/10")
+    if answers.get("sleep_hours"):
+        summary_parts.append(f"Schlaf: {answers['sleep_hours']}h")
+    if answers.get("stress_level"):
+        summary_parts.append(f"Stress: {answers['stress_level']}/10")
+    if answers.get("general_note"):
+        summary_parts.append(f"Notiz: {answers['general_note']}")
+    summary = " | ".join(summary_parts)
+    plan = get_latest_plan(client["id"])
+    plan_id = plan["id"] if plan else None
+    save_checkin(client["id"], answers, plan_id=plan_id, summary=summary)
+    return JSONResponse({"ok": True})
+
+
+# ── Progress Tracking ─────────────────────────────────────────────────────────
+
+@app.get("/portal/progress", response_class=HTMLResponse)
+async def portal_progress_page(request: Request):
+    client = get_portal_client(request)
+    if not client:
+        return RedirectResponse("/portal/login")
+    entries = get_progress_entries(client["id"], limit=30)
+    streak = get_streak(client["id"])
+    today = datetime.utcnow().strftime("%Y-%m-%d")
+    return templates.TemplateResponse("portal_progress.html", {
+        "request": request, "client": client,
+        "entries": entries, "streak": streak, "today": today
+    })
+
+
+@app.post("/portal/progress")
+async def portal_progress_save(request: Request):
+    client = get_portal_client(request)
+    if not client:
+        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+    data = await request.json()
+    save_progress_entry(
+        client["id"],
+        date=data.get("date", datetime.utcnow().strftime("%Y-%m-%d")),
+        weight_kg=data.get("weight_kg"),
+        body_fat=data.get("body_fat"),
+        energy=data.get("energy"),
+        sleep_hours=data.get("sleep_hours"),
+        note=data.get("note", "")
+    )
+    if data.get("count_streak"):
+        update_streak(client["id"])
+    return JSONResponse({"ok": True})
+
+
+# ── Emergency / Notfalltaste ──────────────────────────────────────────────────
+
+@app.get("/portal/emergency", response_class=HTMLResponse)
+async def portal_emergency_page(request: Request):
+    client = get_portal_client(request)
+    if not client:
+        return RedirectResponse("/portal/login")
+    requests_list = get_approved_emergency_for_client(client["id"])
+    # Also show pending
+    all_reqs = get_pending_emergency_requests(client["id"])
+    combined = {r["id"]: r for r in requests_list}
+    for r in all_reqs:
+        if r["id"] not in combined:
+            combined[r["id"]] = r
+    sorted_reqs = sorted(combined.values(), key=lambda x: x["created_at"], reverse=True)
+    return templates.TemplateResponse("portal_emergency.html", {
+        "request": request, "client": client, "requests": sorted_reqs
+    })
+
+
+@app.post("/portal/emergency")
+async def portal_emergency_submit(request: Request):
+    client = get_portal_client(request)
+    if not client:
+        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+    data = await request.json()
+    topic = data.get("topic", "allgemein")
+    message = data.get("message", "").strip()
+    if not message:
+        return JSONResponse({"error": "Nachricht fehlt"}, status_code=400)
+
+    req_id = create_emergency_request(client["id"], topic, message)
+
+    # Generate AI response asynchronously
+    asyncio.create_task(_process_emergency(req_id, client, topic, message))
+    return JSONResponse({"ok": True, "req_id": req_id})
+
+
+async def _process_emergency(req_id: int, client: dict, topic: str, message: str):
+    """Background task: KI-Antwort generieren, dann Coach per E-Mail benachrichtigen."""
+    try:
+        from openai import OpenAI
+        oai = OpenAI()
+        knowledge = get_all_knowledge_text()
+        system_prompt = f"""Du bist ein erfahrener NeuroHealthMastery-Coach-Assistent.
+Ein Kunde hat eine Notfall-Anfrage gestellt. Antworte professionell, empathisch und konkret auf Deutsch.
+Basiere deine Antwort auf dem NHM-Konzept und den folgenden Wissensquellen:
+{knowledge[:3000] if knowledge else 'Keine zusätzlichen Dokumente verfügbar.'}
+Wichtig: Gib eine klare, handlungsorientierte Antwort. Maximal 200 Wörter."""
+
+        resp = oai.chat.completions.create(
+            model="gpt-4.1-mini",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": f"Thema: {topic}\n\nKunde schreibt: {message}"}
+            ],
+            max_tokens=400
+        )
+        ai_response = resp.choices[0].message.content.strip()
+        update_emergency_ai_response(req_id, ai_response)
+
+        # E-Mail an Coach
+        coach_email = os.environ.get("COACH_EMAIL", "rene@neurohealthmastery.de")
+        approval_url = f"{os.environ.get('APP_URL', 'https://web-production-f5f68a.up.railway.app')}/emergency/{req_id}/approve"
+        try:
+            from email_sender import send_emergency_notification
+            send_emergency_notification(
+                coach_email=coach_email,
+                client_name=client["name"],
+                topic=topic,
+                message=message,
+                ai_response=ai_response,
+                approval_url=approval_url,
+                req_id=req_id
+            )
+        except Exception as e:
+            print(f"Emergency email error: {e}")
+    except Exception as e:
+        print(f"Emergency AI error: {e}")
+
+
+@app.get("/emergency/{req_id}/approve", response_class=HTMLResponse)
+async def emergency_approve_page(req_id: int, request: Request):
+    """Coach-Freigabe-Seite (auch ohne Login zugänglich via E-Mail-Link)."""
+    if not is_authenticated(request):
+        return RedirectResponse(f"/login?next=/emergency/{req_id}/approve")
+    req = get_emergency_request(req_id)
+    if not req:
+        raise HTTPException(404)
+    client = get_client(req["client_id"])
+    return templates.TemplateResponse("emergency_approve.html", {
+        "request": request, "req": req, "client": client
+    })
+
+
+@app.post("/emergency/{req_id}/approve")
+async def emergency_approve_submit(req_id: int, request: Request):
+    if not is_authenticated(request):
+        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+    data = await request.json()
+    coach_edit = data.get("coach_edit", "").strip() or None
+    approve_emergency_request(req_id, coach_edit=coach_edit)
+    return JSONResponse({"ok": True})
+
+
+# ── Audio / Sprache-zu-Text ───────────────────────────────────────────────────
+
+@app.post("/api/speech-to-text")
+async def speech_to_text(request: Request, audio: UploadFile = File(...)):
+    """Browser-Mikrofon → Whisper → Text. Funktioniert für Coach und Kunden."""
+    # Check auth (coach or portal client)
+    if not is_authenticated(request) and not get_portal_client(request):
+        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+    try:
+        from openai import OpenAI
+        oai = OpenAI()
+        audio_bytes = await audio.read()
+        # Save temp file
+        import tempfile
+        suffix = ".webm"
+        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+            tmp.write(audio_bytes)
+            tmp_path = tmp.name
+        with open(tmp_path, "rb") as f:
+            transcript = oai.audio.transcriptions.create(
+                model="whisper-1",
+                file=f,
+                language="de"
+            )
+        os.unlink(tmp_path)
+        return JSONResponse({"text": transcript.text})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+# ── Commander: Check-in Auswertung ────────────────────────────────────────────
+
+@app.get("/client/{client_id}/checkins", response_class=HTMLResponse)
+async def commander_checkins(client_id: int, request: Request):
+    if not is_authenticated(request):
+        return RedirectResponse("/login")
+    client = get_client(client_id)
+    if not client:
+        raise HTTPException(404)
+    checkins = get_checkins(client_id, limit=20)
+    for ci in checkins:
+        if isinstance(ci.get("answers"), str):
+            try:
+                ci["answers"] = json.loads(ci["answers"])
+            except Exception:
+                ci["answers"] = {}
+    return templates.TemplateResponse("commander_checkins.html", {
+        "request": request, "client": client, "checkins": checkins
+    })
+
+
+@app.post("/client/{client_id}/checkin/flag")
+async def flag_checkin(client_id: int, request: Request):
+    if not is_authenticated(request):
+        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+    data = await request.json()
+    flag_checkin_for_ki(data["checkin_id"], data.get("flag", True))
+    return JSONResponse({"ok": True})
+
+
+# ── Commander: Emergency Requests ─────────────────────────────────────────────
+
+@app.get("/emergencies", response_class=HTMLResponse)
+async def commander_emergencies(request: Request):
+    if not is_authenticated(request):
+        return RedirectResponse("/login")
+    reqs = get_pending_emergency_requests()
+    return templates.TemplateResponse("commander_emergencies.html", {
+        "request": request, "requests": reqs
+    })

@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}Check-ins – {{ client.name }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">📊 Check-ins — {{ client.name }}</h1>
+    <p class="page-sub">{{ checkins|length }} Einträge</p>
+  </div>
+  <div style="display:flex;gap:10px;">
+    <a href="/client/{{ client.id }}/portal" class="btn-secondary">🔗 Portal</a>
+    <a href="/client/{{ client.id }}" class="btn-secondary">← Zurück</a>
+  </div>
+</div>
+
+{% if not checkins %}
+<div class="empty-state">
+  <div class="empty-icon">📊</div>
+  <h2>Noch keine Check-ins</h2>
+  <p>Der Kunde hat noch keinen Anpassungsbogen ausgefüllt.</p>
+</div>
+{% else %}
+<div style="display:flex;flex-direction:column;gap:16px;max-width:800px;">
+  {% for ci in checkins %}
+  {% set a = ci.answers if ci.answers is mapping else {} %}
+  <div style="background:#161a22;border:1px solid #2a2f3d;border-radius:12px;padding:20px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+      <span style="font-size:14px;font-weight:600;">{{ ci.created_at[:10] }}</span>
+      <div style="display:flex;gap:10px;align-items:center;">
+        {% if ci.ki_context %}
+        <span style="background:rgba(245,158,11,0.1);color:#f59e0b;font-size:12px;padding:3px 10px;border-radius:20px;">⭐ KI-Kontext</span>
+        {% endif %}
+        <button onclick="toggleKiFlag({{ ci.id }}, {{ 0 if ci.ki_context else 1 }})"
+          style="background:{% if ci.ki_context %}rgba(245,158,11,0.1){% else %}#0d0f14{% endif %};border:1px solid {% if ci.ki_context %}#f59e0b{% else %}#2a2f3d{% endif %};border-radius:8px;color:{% if ci.ki_context %}#f59e0b{% else %}#6b7280{% endif %};padding:6px 12px;font-size:12px;cursor:pointer;">
+          {% if ci.ki_context %}⭐ KI-Kontext entfernen{% else %}⭐ Für KI markieren{% endif %}
+        </button>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:12px;margin-bottom:14px;">
+      {% if a.training_intensity is defined %}
+      <div style="text-align:center;background:#0d0f14;border-radius:8px;padding:10px;">
+        <div style="font-size:20px;font-weight:800;color:#00c8ff;">{{ a.training_intensity }}/10</div>
+        <div style="font-size:11px;color:#6b7280;">Training</div>
+      </div>
+      {% endif %}
+      {% if a.nutrition_adherence is defined %}
+      <div style="text-align:center;background:#0d0f14;border-radius:8px;padding:10px;">
+        <div style="font-size:20px;font-weight:800;color:#22c55e;">{{ a.nutrition_adherence }}/10</div>
+        <div style="font-size:11px;color:#6b7280;">Ernährung</div>
+      </div>
+      {% endif %}
+      {% if a.sleep_hours is defined %}
+      <div style="text-align:center;background:#0d0f14;border-radius:8px;padding:10px;">
+        <div style="font-size:20px;font-weight:800;color:#a78bfa;">{{ a.sleep_hours }}h</div>
+        <div style="font-size:11px;color:#6b7280;">Schlaf</div>
+      </div>
+      {% endif %}
+      {% if a.stress_level is defined %}
+      <div style="text-align:center;background:#0d0f14;border-radius:8px;padding:10px;">
+        <div style="font-size:20px;font-weight:800;color:#f59e0b;">{{ a.stress_level }}/10</div>
+        <div style="font-size:11px;color:#6b7280;">Stress</div>
+      </div>
+      {% endif %}
+      {% if a.energy_stars is defined %}
+      <div style="text-align:center;background:#0d0f14;border-radius:8px;padding:10px;">
+        <div style="font-size:20px;font-weight:800;color:#f59e0b;">{{ a.energy_stars }}⭐</div>
+        <div style="font-size:11px;color:#6b7280;">Energie</div>
+      </div>
+      {% endif %}
+    </div>
+
+    {% if a.training_issues %}
+    <div style="margin-bottom:8px;"><span style="font-size:12px;color:#6b7280;">Training-Probleme:</span>
+      {% for issue in a.training_issues %}<span style="background:rgba(239,68,68,0.1);color:#ef4444;font-size:12px;padding:2px 8px;border-radius:12px;margin-left:4px;">{{ issue }}</span>{% endfor %}
+    </div>
+    {% endif %}
+    {% if a.nutrition_issues %}
+    <div style="margin-bottom:8px;"><span style="font-size:12px;color:#6b7280;">Ernährungs-Probleme:</span>
+      {% for issue in a.nutrition_issues %}<span style="background:rgba(34,197,94,0.1);color:#22c55e;font-size:12px;padding:2px 8px;border-radius:12px;margin-left:4px;">{{ issue }}</span>{% endfor %}
+    </div>
+    {% endif %}
+    {% if a.general_note %}
+    <div style="background:#0d0f14;border-radius:8px;padding:10px;font-size:13px;color:#e2e8f0;margin-top:8px;">
+      <strong style="color:#6b7280;font-size:11px;">NOTIZ:</strong><br>{{ a.general_note }}
+    </div>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<script>
+async function toggleKiFlag(checkinId, flag) {
+  await fetch('/client/{{ client.id }}/checkin/flag', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ checkin_id: checkinId, flag: flag === 1 })
+  });
+  location.reload();
+}
+</script>
+{% endblock %}

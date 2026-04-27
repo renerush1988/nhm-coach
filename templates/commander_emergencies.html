@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Notfallanfragen – NHM Coach{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">🆘 Offene Notfallanfragen</h1>
+    <p class="page-sub">{{ requests|length }} Anfragen warten auf Freigabe</p>
+  </div>
+  <a href="/" class="btn-secondary">← Dashboard</a>
+</div>
+
+{% if not requests %}
+<div class="empty-state">
+  <div class="empty-icon">✅</div>
+  <h2>Keine offenen Anfragen</h2>
+  <p>Alle Notfallanfragen wurden bearbeitet.</p>
+</div>
+{% else %}
+<div style="display:flex;flex-direction:column;gap:14px;max-width:800px;">
+  {% for req in requests %}
+  <div style="background:#161a22;border:1px solid {% if req.status == 'awaiting_approval' %}rgba(245,158,11,0.4){% else %}#2a2f3d{% endif %};border-radius:12px;padding:20px;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;">
+      <div>
+        <span style="font-weight:700;font-size:15px;">{{ req.client_name }}</span>
+        <span style="background:rgba(239,68,68,0.1);color:#ef4444;font-size:12px;padding:3px 10px;border-radius:20px;margin-left:8px;">{{ req.topic }}</span>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        {% if req.status == 'awaiting_approval' %}
+        <span style="background:rgba(245,158,11,0.1);color:#f59e0b;font-size:12px;padding:3px 10px;border-radius:20px;">⏳ Wartet</span>
+        {% elif req.status == 'approved' %}
+        <span style="background:rgba(34,197,94,0.1);color:#22c55e;font-size:12px;padding:3px 10px;border-radius:20px;">✅ Freigegeben</span>
+        {% endif %}
+        <span style="font-size:12px;color:#6b7280;">{{ req.created_at[:16].replace('T',' ') }}</span>
+      </div>
+    </div>
+    <p style="font-size:14px;color:#e2e8f0;margin-bottom:10px;">{{ req.message }}</p>
+    {% if req.ai_response %}
+    <div style="background:rgba(0,200,255,0.05);border-left:3px solid #00c8ff;padding:10px 14px;border-radius:0 8px 8px 0;font-size:13px;color:#94a3b8;margin-bottom:12px;">
+      <strong style="color:#00c8ff;font-size:11px;">KI-ANTWORT:</strong><br>{{ req.ai_response[:200] }}{% if req.ai_response|length > 200 %}…{% endif %}
+    </div>
+    {% endif %}
+    {% if req.status == 'awaiting_approval' %}
+    <a href="/emergency/{{ req.id }}/approve" style="display:inline-block;background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:600;text-decoration:none;">
+      ✅ Prüfen & Freigeben
+    </a>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

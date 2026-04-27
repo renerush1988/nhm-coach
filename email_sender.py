@@ -206,3 +206,68 @@ def send_plan_email(client_data: dict, pdf_bytes: bytes, plan_version: int = 1) 
         server.sendmail(FROM_EMAIL, to_email, msg.as_string())
 
     return True
+
+
+def send_emergency_notification(coach_email: str, client_name: str, topic: str,
+                                 message: str, ai_response: str,
+                                 approval_url: str, req_id: int) -> bool:
+    """Notify coach about a new emergency request and provide approval link."""
+    if not SMTP_USER or not SMTP_PASS:
+        print("SMTP not configured — skipping emergency notification email")
+        return False
+
+    subject = f"🆘 Notfallanfrage von {client_name} – {topic}"
+
+    html = f"""<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8">
+<style>
+  body {{ font-family: Arial, sans-serif; background: #f8fafc; margin: 0; padding: 0; }}
+  .container {{ max-width: 600px; margin: 0 auto; background: white; }}
+  .header {{ background: #0a0f1e; padding: 24px; text-align: center; }}
+  .header h1 {{ color: #ef4444; font-size: 20px; margin: 0; }}
+  .body {{ padding: 24px; }}
+  .label {{ font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }}
+  .box {{ background: #f8fafc; border-radius: 8px; padding: 14px; margin-bottom: 16px; font-size: 14px; line-height: 1.6; }}
+  .ai-box {{ background: #f0fdfa; border-left: 4px solid #06b6d4; padding: 14px; margin-bottom: 16px; font-size: 14px; line-height: 1.6; }}
+  .btn {{ display: inline-block; background: #22c55e; color: white; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 15px; }}
+  .footer {{ background: #f1f5f9; padding: 16px; text-align: center; font-size: 12px; color: #94a3b8; }}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header"><h1>🆘 Neue Notfallanfrage</h1></div>
+  <div class="body">
+    <p><strong>Kunde:</strong> {client_name}<br><strong>Thema:</strong> {topic}</p>
+    <div class="label">Kunden-Nachricht</div>
+    <div class="box">{message}</div>
+    <div class="label">KI-Antwort (Entwurf)</div>
+    <div class="ai-box">{ai_response}</div>
+    <p style="text-align:center;">
+      <a href="{approval_url}" class="btn">✅ Prüfen & Freigeben</a>
+    </p>
+    <p style="font-size:13px;color:#6b7280;text-align:center;">
+      Oder öffne direkt: {approval_url}
+    </p>
+  </div>
+  <div class="footer">NeuroHealthMastery | NHM Coach System | Anfrage #{req_id}</div>
+</div>
+</body>
+</html>"""
+
+    msg = MIMEMultipart("mixed")
+    msg["Subject"] = subject
+    msg["From"] = f"{FROM_NAME} <{FROM_EMAIL}>"
+    msg["To"] = coach_email
+    msg.attach(MIMEText(html, "html", "utf-8"))
+
+    try:
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+            server.ehlo()
+            server.starttls()
+            server.login(SMTP_USER, SMTP_PASS)
+            server.sendmail(FROM_EMAIL, coach_email, msg.as_string())
+        return True
+    except Exception as e:
+        print(f"Emergency email send error: {e}")
+        return False

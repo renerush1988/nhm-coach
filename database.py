@@ -172,6 +172,66 @@ def init_db():
         )
     """)
 
+    # ── Check-in / Anpassungsbogen ─────────────────────────────────────────────
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS checkins (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            client_id   INTEGER NOT NULL,
+            plan_id     INTEGER DEFAULT NULL,
+            answers     TEXT NOT NULL DEFAULT '{}',
+            summary     TEXT DEFAULT NULL,
+            ki_context  INTEGER NOT NULL DEFAULT 0,
+            created_at  TEXT NOT NULL,
+            FOREIGN KEY (client_id) REFERENCES clients(id)
+        )
+    """)
+
+    # ── Progress Tracking ─────────────────────────────────────────────────────
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS progress_entries (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            client_id   INTEGER NOT NULL,
+            date        TEXT NOT NULL,
+            weight_kg   REAL DEFAULT NULL,
+            body_fat    REAL DEFAULT NULL,
+            energy      INTEGER DEFAULT NULL,
+            sleep_hours REAL DEFAULT NULL,
+            note        TEXT DEFAULT '',
+            created_at  TEXT NOT NULL,
+            FOREIGN KEY (client_id) REFERENCES clients(id)
+        )
+    """)
+
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS training_streaks (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            client_id   INTEGER NOT NULL UNIQUE,
+            current_streak INTEGER NOT NULL DEFAULT 0,
+            longest_streak INTEGER NOT NULL DEFAULT 0,
+            last_checkin   TEXT DEFAULT NULL,
+            total_sessions INTEGER NOT NULL DEFAULT 0,
+            updated_at  TEXT NOT NULL,
+            FOREIGN KEY (client_id) REFERENCES clients(id)
+        )
+    """)
+
+    # ── Notfalltaste ─────────────────────────────────────────────────────────
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS emergency_requests (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            client_id   INTEGER NOT NULL,
+            topic       TEXT NOT NULL DEFAULT 'allgemein',
+            message     TEXT NOT NULL,
+            ai_response TEXT DEFAULT NULL,
+            status      TEXT NOT NULL DEFAULT 'pending',
+            coach_approved INTEGER NOT NULL DEFAULT 0,
+            coach_edit  TEXT DEFAULT NULL,
+            sent_to_client INTEGER NOT NULL DEFAULT 0,
+            created_at  TEXT NOT NULL,
+            FOREIGN KEY (client_id) REFERENCES clients(id)
+        )
+    """)
+
     conn.commit()
     conn.close()
 
@@ -752,3 +812,227 @@ def set_released_pillars(client_id, pillars):
         )
     conn.commit()
     conn.close()
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CHECK-IN / ANPASSUNGSBOGEN
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def save_checkin(client_id, answers: dict, plan_id=None, summary=None):
+    now = datetime.utcnow().isoformat()
+    conn = get_conn()
+    c = conn.cursor()
+    c.execute("""
+        INSERT INTO checkins (client_id, plan_id, answers, summary, created_at)
+        VALUES (?, ?, ?, ?, ?)
+    """, (client_id, plan_id, json.dumps(answers), summary, now))
+    checkin_id = c.lastrowid
+    conn.commit()
+    conn.close()
+    return checkin_id
+
+
+def get_checkins(client_id, limit=10):
+    conn = get_conn()
+    c = conn.cursor()
+    rows = c.execute("""
+        SELECT * FROM checkins WHERE client_id = ?
+        ORDER BY created_at DESC LIMIT ?
+    """, (client_id, limit)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_latest_checkin(client_id):
+    conn = get_conn()
+    c = conn.cursor()
+    row = c.execute("""
+        SELECT * FROM checkins WHERE client_id = ?
+        ORDER BY created_at DESC LIMIT 1
+    """, (client_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def flag_checkin_for_ki(checkin_id, flag=True):
+    conn = get_conn()
+    conn.execute("UPDATE checkins SET ki_context = ? WHERE id = ?", (1 if flag else 0, checkin_id))
+    conn.commit()
+    conn.close()
+
+
+def get_ki_flagged_checkins(client_id):
+    conn = get_conn()
+    c = conn.cursor()
+    rows = c.execute("""
+        SELECT * FROM checkins WHERE client_id = ? AND ki_context = 1
+        ORDER BY created_at DESC LIMIT 5
+    """, (client_id,)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PROGRESS TRACKING
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def save_progress_entry(client_id, date, weight_kg=None, body_fat=None,
+                        energy=None, sleep_hours=None, note=""):
+    now = datetime.utcnow().isoformat()
+    conn = get_conn()
+    c = conn.cursor()
+    # Upsert by date
+    existing = c.execute(
+        "SELECT id FROM progress_entries WHERE client_id = ? AND date = ?",
+        (client_id, date)
+    ).fetchone()
+    if existing:
+        c.execute("""
+            UPDATE progress_entries
+            SET weight_kg=?, body_fat=?, energy=?, sleep_hours=?, note=?
+            WHERE client_id=? AND date=?
+        """, (weight_kg, body_fat, energy, sleep_hours, note, client_id, date))
+    else:
+        c.execute("""
+            INSERT INTO progress_entries
+            (client_id, date, weight_kg, body_fat, energy, sleep_hours, note, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (client_id, date, weight_kg, body_fat, energy, sleep_hours, note, now))
+    conn.commit()
+    conn.close()
+
+
+def get_progress_entries(client_id, limit=30):
+    conn = get_conn()
+    c = conn.cursor()
+    rows = c.execute("""
+        SELECT * FROM progress_entries WHERE client_id = ?
+        ORDER BY date DESC LIMIT ?
+    """, (client_id, limit)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_streak(client_id):
+    conn = get_conn()
+    c = conn.cursor()
+    row = c.execute(
+        "SELECT * FROM training_streaks WHERE client_id = ?", (client_id,)
+    ).fetchone()
+    conn.close()
+    return dict(row) if row else {"current_streak": 0, "longest_streak": 0, "total_sessions": 0, "last_checkin": None}
+
+
+def update_streak(client_id):
+    """Call when client logs a training session. Increments streak."""
+    now = datetime.utcnow().isoformat()
+    today = now[:10]
+    conn = get_conn()
+    c = conn.cursor()
+    row = c.execute("SELECT * FROM training_streaks WHERE client_id = ?", (client_id,)).fetchone()
+    if row:
+        row = dict(row)
+        last = row.get("last_checkin", "")[:10] if row.get("last_checkin") else ""
+        if last == today:
+            conn.close()
+            return  # already logged today
+        from datetime import date, timedelta
+        yesterday = (date.today() - timedelta(days=1)).isoformat()
+        if last == yesterday:
+            new_streak = row["current_streak"] + 1
+        else:
+            new_streak = 1
+        longest = max(row["longest_streak"], new_streak)
+        total = row["total_sessions"] + 1
+        c.execute("""
+            UPDATE training_streaks
+            SET current_streak=?, longest_streak=?, last_checkin=?, total_sessions=?, updated_at=?
+            WHERE client_id=?
+        """, (new_streak, longest, now, total, now, client_id))
+    else:
+        c.execute("""
+            INSERT INTO training_streaks
+            (client_id, current_streak, longest_streak, last_checkin, total_sessions, updated_at)
+            VALUES (?, 1, 1, ?, 1, ?)
+        """, (client_id, now, now))
+    conn.commit()
+    conn.close()
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# NOTFALLTASTE / EMERGENCY
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def create_emergency_request(client_id, topic, message):
+    now = datetime.utcnow().isoformat()
+    conn = get_conn()
+    c = conn.cursor()
+    c.execute("""
+        INSERT INTO emergency_requests (client_id, topic, message, created_at)
+        VALUES (?, ?, ?, ?)
+    """, (client_id, topic, message, now))
+    req_id = c.lastrowid
+    conn.commit()
+    conn.close()
+    return req_id
+
+
+def get_emergency_request(req_id):
+    conn = get_conn()
+    c = conn.cursor()
+    row = c.execute("SELECT * FROM emergency_requests WHERE id = ?", (req_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def update_emergency_ai_response(req_id, ai_response):
+    conn = get_conn()
+    conn.execute(
+        "UPDATE emergency_requests SET ai_response=?, status='awaiting_approval' WHERE id=?",
+        (ai_response, req_id)
+    )
+    conn.commit()
+    conn.close()
+
+
+def approve_emergency_request(req_id, coach_edit=None):
+    conn = get_conn()
+    conn.execute("""
+        UPDATE emergency_requests
+        SET coach_approved=1, coach_edit=?, status='approved', sent_to_client=1
+        WHERE id=?
+    """, (coach_edit, req_id))
+    conn.commit()
+    conn.close()
+
+
+def get_pending_emergency_requests(client_id=None):
+    conn = get_conn()
+    c = conn.cursor()
+    if client_id:
+        rows = c.execute("""
+            SELECT e.*, cl.name as client_name FROM emergency_requests e
+            JOIN clients cl ON cl.id = e.client_id
+            WHERE e.client_id = ? ORDER BY e.created_at DESC
+        """, (client_id,)).fetchall()
+    else:
+        rows = c.execute("""
+            SELECT e.*, cl.name as client_name FROM emergency_requests e
+            JOIN clients cl ON cl.id = e.client_id
+            WHERE e.status = 'awaiting_approval'
+            ORDER BY e.created_at DESC
+        """).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_approved_emergency_for_client(client_id):
+    conn = get_conn()
+    c = conn.cursor()
+    rows = c.execute("""
+        SELECT * FROM emergency_requests
+        WHERE client_id = ? AND sent_to_client = 1
+        ORDER BY created_at DESC LIMIT 10
+    """, (client_id,)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]

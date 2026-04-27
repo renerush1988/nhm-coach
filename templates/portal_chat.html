@@ -93,7 +93,8 @@
 <div class="chat-input-area">
   <div class="file-preview" id="file-preview"></div>
   <div class="chat-input-row">
-    <button class="chat-file-btn" onclick="document.getElementById('file-input').click()">📎</button>
+    <button class="chat-file-btn" onclick="document.getElementById('file-input').click()" title="Datei anhängen">📎</button>
+    <button class="chat-file-btn" id="mic-btn" onclick="toggleRecording()" title="Sprachnachricht">🎤</button>
     <input type="file" id="file-input" onchange="previewFile(this)">
     <textarea
       class="chat-textarea"
@@ -126,6 +127,51 @@ function previewFile(input) {
   if (input.files && input.files[0]) {
     preview.textContent = '📎 ' + input.files[0].name;
     preview.style.display = 'block';
+  }
+}
+
+// ── Audio Recording ──────────────────────────────────────────────────────────
+let mediaRecorder = null;
+let audioChunks = [];
+let isRecording = false;
+
+async function toggleRecording() {
+  const btn = document.getElementById('mic-btn');
+  if (!isRecording) {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder = new MediaRecorder(stream);
+      audioChunks = [];
+      mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+      mediaRecorder.onstop = async () => {
+        const blob = new Blob(audioChunks, { type: 'audio/webm' });
+        const fd = new FormData();
+        fd.append('audio', blob, 'voice.webm');
+        btn.textContent = '⏳';
+        btn.style.color = '#f59e0b';
+        try {
+          const r = await fetch('/api/speech-to-text', { method: 'POST', body: fd });
+          const data = await r.json();
+          if (data.text) {
+            const input = document.getElementById('msg-input');
+            input.value = (input.value + ' ' + data.text).trim();
+            autoResize(input);
+          }
+        } catch(e) { console.error('STT error', e); }
+        btn.textContent = '🎤';
+        btn.style.color = '';
+        stream.getTracks().forEach(t => t.stop());
+      };
+      mediaRecorder.start();
+      isRecording = true;
+      btn.textContent = '⏹️';
+      btn.style.color = '#ef4444';
+    } catch(e) {
+      alert('Mikrofon-Zugriff verweigert. Bitte erlaube den Zugriff in deinem Browser.');
+    }
+  } else {
+    mediaRecorder.stop();
+    isRecording = false;
   }
 }
 
