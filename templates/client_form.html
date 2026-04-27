@@ -129,6 +129,18 @@
       </div>
     </div>
 
+    {% if mode != 'edit' %}
+    <div style="background:#161a22;border:1px solid #2a2f3d;border-radius:10px;padding:16px 20px;margin-bottom:16px;">
+      <label style="display:flex;align-items:center;gap:12px;cursor:pointer;">
+        <input type="checkbox" name="send_portal_invite" value="on" id="send_invite_cb" style="width:18px;height:18px;accent-color:#00c8ff;cursor:pointer;">
+        <div>
+          <div style="font-weight:600;font-size:14px;color:#e2e8f0;">📧 Portal-Einladung per E-Mail senden</div>
+          <div style="font-size:12px;color:#6b7280;margin-top:2px;">Kunde erhält Magic-Link + Zugangscode für das Kunden-Portal</div>
+        </div>
+      </label>
+    </div>
+    {% endif %}
+
     <div class="form-actions">
       <button type="submit" class="btn-primary btn-large">
         {{ '💾 Änderungen speichern' if mode == 'edit' else '✅ Kunden anlegen' }}

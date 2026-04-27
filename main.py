@@ -121,12 +121,20 @@ async def dashboard(request: Request):
     if not is_authenticated(request):
         return RedirectResponse("/login", status_code=302)
     clients = list_clients()
-    # Enrich with latest plan status
+    # Enrich with latest plan status, portal data
     for c in clients:
         plan = get_latest_plan(c["id"])
         c["plan_status"] = plan["status"] if plan else "none"
         c["plan_version"] = plan["version"] if plan else 0
         c["plan_id"] = plan["id"] if plan else None
+        # Portal enrichment
+        token_row = get_or_create_client_token(c["id"])
+        c["last_login"] = token_row.get("last_login", None) if token_row else None
+        streak = get_streak(c["id"])
+        c["streak"] = streak.get("current_streak", 0) if streak else 0
+        c["unread"] = get_unread_count(c["id"])
+        new_notes = [n for n in get_client_notes(c["id"]) if not n.get("flagged")]
+        c["new_notes"] = len(new_notes)
     return templates.TemplateResponse("dashboard.html", {
         "request": request,
         "clients": clients,
@@ -173,6 +181,17 @@ async def new_client_submit(
         goal=goal, pillars=pillars, duration=duration,
         calories=calories, train_days=train_days, notes=notes
     )
+    # Auto-create portal token for new client
+    token_row = get_or_create_client_token(client_id)
+    # Send portal invitation email if SMTP is configured
+    send_invite = form_data.get("send_portal_invite", "off")
+    if send_invite == "on" and token_row:
+        try:
+            from email_sender import send_portal_invitation
+            client_data = {"name": name, "email": email, "lang": lang}
+            send_portal_invitation(client_data, token_row["token"], token_row["access_code"])
+        except Exception as e:
+            print(f"Portal invite email error: {e}")
     return RedirectResponse(f"/client/{client_id}", status_code=302)
 
 
@@ -920,6 +939,7 @@ async def client_portal_manage(request: Request, client_id: int):
     plan = get_latest_plan(client_id)
     base_url = str(request.base_url).rstrip("/")
     portal_link = f"{base_url}/portal/access/{token_data['token']}"
+    reminders = get_reminders_for_client(client_id)
     return templates.TemplateResponse("client_portal_manage.html", {
         "request": request,
         "client": client,
@@ -930,6 +950,7 @@ async def client_portal_manage(request: Request, client_id: int):
         "notes": notes,
         "unread_count": unread,
         "plan": plan,
+        "reminders": reminders,
     })
 
 
@@ -1600,3 +1621,97 @@ async def commander_ratings(request: Request):
     return templates.TemplateResponse("commander_ratings.html", {
         "request": request, "ratings": all_ratings
     })
+
+
+# ── Portal: Referral System ───────────────────────────────────────────────────
+
+@app.get("/portal/referral", response_class=HTMLResponse)
+async def portal_referral_page(request: Request):
+    from database import create_referral, get_referrals_for_client, get_referral_count
+    client = get_portal_client(request)
+    if not client:
+        return RedirectResponse("/portal/login")
+    referrals = get_referrals_for_client(client["id"])
+    ref_count = get_referral_count(client["id"])
+    base_url = str(request.base_url).rstrip("/")
+    # Referral link uses client token as referrer ID
+    token_row = get_or_create_client_token(client["id"])
+    referral_link = f"{base_url}/portal/login?ref={token_row['access_code']}"
+    return templates.TemplateResponse("portal_referral.html", {
+        "request": request,
+        "client": client,
+        "referrals": referrals,
+        "ref_count": ref_count,
+        "referral_link": referral_link,
+    })
+
+
+@app.post("/portal/referral")
+async def portal_referral_submit(request: Request):
+    from database import create_referral
+    client = get_portal_client(request)
+    if not client:
+        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+    data = await request.json()
+    email = data.get("email", "").strip()
+    name = data.get("name", "").strip()
+    if not email:
+        return JSONResponse({"error": "E-Mail fehlt"}, status_code=400)
+    try:
+        create_referral(client["id"], email, name)
+        # Optionally send invitation email
+        try:
+            from email_sender import send_portal_invitation
+            # Create a placeholder token for the referred person (no client yet)
+            # Just send a simple invitation email
+            import smtplib
+            from email.mime.multipart import MIMEMultipart
+            from email.mime.text import MIMEText
+            import os as _os
+            smtp_user = _os.environ.get("SMTP_USER", "")
+            smtp_pass = _os.environ.get("SMTP_PASS", "")
+            smtp_host = _os.environ.get("SMTP_HOST", "smtp.gmail.com")
+            smtp_port = int(_os.environ.get("SMTP_PORT", "587"))
+            from_name = _os.environ.get("FROM_NAME", "René Rusch | NeuroHealthMastery")
+            from_email = _os.environ.get("FROM_EMAIL", smtp_user)
+            app_url = _os.environ.get("APP_URL", "https://web-production-f5f68a.up.railway.app")
+            if smtp_user and smtp_pass:
+                subject = f"🧠 {client['name']} empfiehlt dir NeuroHealthMastery"
+                html = f"""<html><body style="font-family:Arial,sans-serif;background:#f8fafc;">
+<div style="max-width:600px;margin:0 auto;background:white;">
+  <div style="background:#0a0f1e;padding:24px;text-align:center;">
+    <h1 style="color:#06b6d4;margin:0;">NeuroHealthMastery</h1>
+  </div>
+  <div style="padding:28px 24px;">
+    <h2 style="color:#0a0f1e;">Hallo {name or 'da'},</h2>
+    <p style="color:#374151;font-size:15px;line-height:1.6;">
+      <strong>{client['name']}</strong> hat dich zu NeuroHealthMastery eingeladen –
+      dem personalisierten Coaching-System für Training, Ernährung und Gesundheit,
+      abgestimmt auf deinen Natural Signature Type.
+    </p>
+    <p style="text-align:center;margin:24px 0;">
+      <a href="{app_url}/portal/login" style="background:#06b6d4;color:white;padding:14px 28px;border-radius:10px;text-decoration:none;font-weight:bold;font-size:15px;">
+        🚀 Jetzt entdecken
+      </a>
+    </p>
+    <p style="color:#374151;font-size:14px;">Auf deinen Erfolg!<br><strong>René Rusch</strong><br>NeuroHealthMastery</p>
+  </div>
+  <div style="background:#f1f5f9;padding:16px;text-align:center;font-size:12px;color:#94a3b8;">
+    NeuroHealthMastery | neurohealthmastery.de
+  </div>
+</div>
+</body></html>"""
+                msg = MIMEMultipart("mixed")
+                msg["Subject"] = subject
+                msg["From"] = f"{from_name} <{from_email}>"
+                msg["To"] = email
+                msg.attach(MIMEText(html, "html", "utf-8"))
+                with smtplib.SMTP(smtp_host, smtp_port) as server:
+                    server.ehlo(); server.starttls()
+                    server.login(smtp_user, smtp_pass)
+                    server.sendmail(from_email, email, msg.as_string())
+        except Exception as e:
+            print(f"Referral invite email error: {e}")
+        return JSONResponse({"ok": True})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)

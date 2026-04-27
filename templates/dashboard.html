@@ -55,10 +55,6 @@
         <span class="meta-value">{{ {'fat_loss':'Fettreduktion','muscle':'Muskelaufbau','energy':'Mehr Energie','health':'Allg. Gesundheit'}[c.goal] }}</span>
       </div>
       <div class="meta-item">
-        <span class="meta-label">Sprache</span>
-        <span class="meta-value">{{ 'Deutsch' if c.lang == 'de' else 'Englisch' }}</span>
-      </div>
-      <div class="meta-item">
         <span class="meta-label">Dauer</span>
         <span class="meta-value">{{ c.duration }} Wochen</span>
       </div>
@@ -71,6 +67,28 @@
           {% endif %}
         </span>
       </div>
+      <div class="meta-item">
+        <span class="meta-label">Letzter Login</span>
+        <span class="meta-value" style="font-size:11px;">
+          {% if c.last_login %}{{ c.last_login[:10] }}{% else %}<span style="color:#6b7280;">Nie</span>{% endif %}
+        </span>
+      </div>
+    </div>
+
+    <!-- Status-Bar -->
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0;">
+      {% if c.streak > 0 %}
+      <span style="background:rgba(251,191,36,0.15);color:#fbbf24;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;">🔥 {{ c.streak }} Tage Streak</span>
+      {% endif %}
+      {% if c.unread > 0 %}
+      <span style="background:rgba(239,68,68,0.15);color:#ef4444;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;">💬 {{ c.unread }} ungelesen</span>
+      {% endif %}
+      {% if c.new_notes > 0 %}
+      <span style="background:rgba(0,200,255,0.12);color:#00c8ff;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;">📝 {{ c.new_notes }} Notiz{% if c.new_notes != 1 %}en{% endif %}</span>
+      {% endif %}
+      {% if not c.last_login %}
+      <span style="background:rgba(107,114,128,0.15);color:#6b7280;border-radius:20px;padding:3px 10px;font-size:11px;">🔒 Portal nicht genutzt</span>
+      {% endif %}
     </div>
 
     <div class="client-pillars">

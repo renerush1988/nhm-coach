@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Freunde empfehlen – NHM Portal</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0f1e; color: #e2e8f0; min-height: 100vh; }
+
+  .portal-header { background: #0d1117; border-bottom: 1px solid #1e2330; padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; }
+  .portal-logo { font-size: 16px; font-weight: 700; color: #00c8ff; }
+  .back-btn { color: #6b7280; text-decoration: none; font-size: 13px; }
+  .back-btn:hover { color: #00c8ff; }
+
+  .container { max-width: 600px; margin: 0 auto; padding: 24px 20px 100px; }
+
+  .hero-card { background: linear-gradient(135deg, #0d1117, #161a22); border: 1px solid rgba(0,200,255,0.3); border-radius: 16px; padding: 28px 24px; text-align: center; margin-bottom: 24px; }
+  .hero-icon { font-size: 48px; margin-bottom: 12px; }
+  .hero-title { font-size: 22px; font-weight: 800; margin-bottom: 8px; }
+  .hero-sub { font-size: 14px; color: #6b7280; line-height: 1.5; }
+
+  .stats-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; }
+  .stat-card { background: #161a22; border: 1px solid #2a2f3d; border-radius: 12px; padding: 16px; text-align: center; }
+  .stat-num { font-size: 28px; font-weight: 800; color: #00c8ff; }
+  .stat-label { font-size: 12px; color: #6b7280; margin-top: 4px; }
+
+  .card { background: #161a22; border: 1px solid #2a2f3d; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+  .card h3 { font-size: 15px; font-weight: 600; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+
+  .ref-link-box { background: #0d0f14; border: 1px solid #2a2f3d; border-radius: 8px; padding: 12px 14px; font-size: 13px; color: #00c8ff; word-break: break-all; margin-bottom: 10px; }
+  .copy-btn { background: #00c8ff; color: #000; border: none; border-radius: 8px; padding: 10px 20px; font-size: 14px; font-weight: 700; cursor: pointer; width: 100%; }
+  .copy-btn:hover { opacity: 0.9; }
+
+  .form-group { margin-bottom: 12px; }
+  .form-group label { display: block; font-size: 12px; color: #6b7280; margin-bottom: 5px; }
+  .form-input { width: 100%; background: #0d0f14; border: 1px solid #2a2f3d; border-radius: 8px; color: #e2e8f0; padding: 10px 14px; font-size: 14px; }
+  .form-input:focus { outline: none; border-color: #00c8ff; }
+  .submit-btn { background: linear-gradient(135deg, #22c55e, #16a34a); color: #fff; border: none; border-radius: 8px; padding: 12px 20px; font-size: 14px; font-weight: 700; cursor: pointer; width: 100%; margin-top: 4px; }
+  .submit-btn:hover { opacity: 0.9; }
+
+  .referral-list { display: flex; flex-direction: column; gap: 8px; }
+  .referral-item { display: flex; align-items: center; gap: 12px; background: #0d0f14; border-radius: 8px; padding: 10px 14px; }
+  .ref-avatar { width: 32px; height: 32px; border-radius: 50%; background: #1e2330; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: #00c8ff; flex-shrink: 0; }
+  .ref-info { flex: 1; }
+  .ref-name { font-size: 13px; font-weight: 600; }
+  .ref-email { font-size: 11px; color: #6b7280; }
+  .ref-status { font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 10px; }
+  .ref-status.pending { background: rgba(251,191,36,0.15); color: #fbbf24; }
+  .ref-status.converted { background: rgba(34,197,94,0.15); color: #22c55e; }
+
+  .bonus-card { background: linear-gradient(135deg, rgba(251,191,36,0.1), rgba(245,158,11,0.05)); border: 1px solid rgba(251,191,36,0.3); border-radius: 12px; padding: 18px; margin-bottom: 16px; }
+  .bonus-card h3 { color: #fbbf24; }
+  .bonus-list { list-style: none; margin-top: 10px; }
+  .bonus-list li { font-size: 13px; color: #e2e8f0; padding: 6px 0; border-bottom: 1px solid rgba(251,191,36,0.1); display: flex; align-items: center; gap: 8px; }
+  .bonus-list li:last-child { border-bottom: none; }
+
+  .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: #0d1117; border-top: 1px solid #1e2330; display: flex; justify-content: space-around; padding: 10px 0 max(10px, env(safe-area-inset-bottom)); z-index: 100; }
+  .nav-item { display: flex; flex-direction: column; align-items: center; gap: 3px; text-decoration: none; color: #6b7280; font-size: 10px; padding: 4px 12px; }
+  .nav-item.active { color: #00c8ff; }
+  .nav-item span:first-child { font-size: 20px; }
+</style>
+</head>
+<body>
+
+<div class="portal-header">
+  <span class="portal-logo">🧠 NHM Portal</span>
+  <a href="/portal/dashboard" class="back-btn">← Dashboard</a>
+</div>
+
+<div class="container">
+
+  <div class="hero-card">
+    <div class="hero-icon">🤝</div>
+    <div class="hero-title">Freunde empfehlen</div>
+    <div class="hero-sub">Teile deine Erfahrung und hilf anderen, ihre Gesundheitsziele zu erreichen. Für jede erfolgreiche Empfehlung bekommst du einen Bonus.</div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-num">{{ ref_count.total }}</div>
+      <div class="stat-label">Empfehlungen gesamt</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" style="color:#22c55e;">{{ ref_count.converted }}</div>
+      <div class="stat-label">Erfolgreich</div>
+    </div>
+  </div>
+
+  <!-- Bonus Info -->
+  <div class="bonus-card">
+    <h3>🎁 Deine Vorteile</h3>
+    <ul class="bonus-list">
+      <li>✅ <span>1 Empfehlung → 1 Woche kostenlos</span></li>
+      <li>✅ <span>3 Empfehlungen → 1 Monat kostenlos</span></li>
+      <li>✅ <span>5+ Empfehlungen → Exklusiver VIP-Status</span></li>
+    </ul>
+  </div>
+
+  <!-- Referral Link -->
+  <div class="card">
+    <h3>🔗 Dein persönlicher Empfehlungs-Link</h3>
+    <div class="ref-link-box" id="ref-link">{{ referral_link }}</div>
+    <button class="copy-btn" onclick="copyRefLink()">📋 Link kopieren</button>
+    <p style="font-size:12px;color:#6b7280;margin-top:10px;text-align:center;">Teile diesen Link per WhatsApp, Instagram oder E-Mail</p>
+  </div>
+
+  <!-- Direkt einladen -->
+  <div class="card">
+    <h3>📧 Freund direkt einladen</h3>
+    <div class="form-group">
+      <label>Name des Freundes</label>
+      <input type="text" class="form-input" id="ref-name" placeholder="z. B. Max Mustermann">
+    </div>
+    <div class="form-group">
+      <label>E-Mail-Adresse</label>
+      <input type="email" class="form-input" id="ref-email" placeholder="freund@beispiel.de">
+    </div>
+    <button class="submit-btn" onclick="sendReferral()">✉️ Einladung senden</button>
+    <div id="ref-feedback" style="display:none;margin-top:10px;text-align:center;font-size:13px;color:#22c55e;"></div>
+  </div>
+
+  <!-- Referral Liste -->
+  {% if referrals %}
+  <div class="card">
+    <h3>📋 Meine Empfehlungen</h3>
+    <div class="referral-list">
+      {% for r in referrals %}
+      <div class="referral-item">
+        <div class="ref-avatar">{{ r.referred_name[0].upper() if r.referred_name else '?' }}</div>
+        <div class="ref-info">
+          <div class="ref-name">{{ r.referred_name or 'Unbekannt' }}</div>
+          <div class="ref-email">{{ r.referred_email }}</div>
+        </div>
+        <span class="ref-status {{ r.status }}">
+          {% if r.status == 'converted' %}✅ Aktiv{% else %}⏳ Ausstehend{% endif %}
+        </span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+
+<!-- Bottom Nav -->
+<nav class="bottom-nav">
+  <a href="/portal/dashboard" class="nav-item"><span>🏠</span><span>Home</span></a>
+  <a href="/portal/plan" class="nav-item"><span>📋</span><span>Plan</span></a>
+  <a href="/portal/progress" class="nav-item"><span>📊</span><span>Fortschritt</span></a>
+  <a href="/portal/chat" class="nav-item"><span>💬</span><span>Chat</span></a>
+  <a href="/portal/referral" class="nav-item active"><span>🤝</span><span>Empfehlen</span></a>
+</nav>
+
+<script>
+function copyRefLink() {
+  const link = document.getElementById('ref-link').textContent.trim();
+  navigator.clipboard.writeText(link).then(() => {
+    const btn = event.target;
+    btn.textContent = '✅ Kopiert!';
+    setTimeout(() => btn.textContent = '📋 Link kopieren', 2000);
+  });
+}
+
+async function sendReferral() {
+  const name = document.getElementById('ref-name').value.trim();
+  const email = document.getElementById('ref-email').value.trim();
+  if (!email) { alert('Bitte E-Mail eingeben.'); return; }
+
+  const r = await fetch('/portal/referral', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({name, email})
+  });
+  const data = await r.json();
+  const fb = document.getElementById('ref-feedback');
+  if (data.ok) {
+    fb.textContent = '✅ Einladung gesendet!';
+    fb.style.color = '#22c55e';
+    document.getElementById('ref-name').value = '';
+    document.getElementById('ref-email').value = '';
+  } else {
+    fb.textContent = data.error || 'Fehler beim Senden.';
+    fb.style.color = '#ef4444';
+  }
+  fb.style.display = 'block';
+  setTimeout(() => fb.style.display = 'none', 4000);
+}
+</script>
+</body>
+</html>

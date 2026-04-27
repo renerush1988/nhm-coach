@@ -170,6 +170,29 @@
 
   </div>
 
+  <!-- Plan Renewal Reminder -->
+  <div class="pm-card" style="margin-bottom:20px;">
+    <h3>⏰ Plan-Verlängerungs-Reminder</h3>
+    <p style="font-size:13px;color:#6b7280;margin-bottom:14px;">Setze ein Datum — du bekommst automatisch eine E-Mail wenn der Plan ausläuft.</p>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+      <input type="date" id="renewal-date" style="background:#0d0f14;border:1px solid #2a2f3d;border-radius:8px;color:#e2e8f0;padding:9px 14px;font-size:13px;">
+      <button onclick="scheduleRenewal()" style="background:#f59e0b;color:#000;border:none;border-radius:8px;padding:9px 18px;font-size:13px;font-weight:700;cursor:pointer;">⏰ Reminder setzen</button>
+      <span id="renewal-status" style="font-size:12px;color:#22c55e;display:none;">✅ Gespeichert!</span>
+    </div>
+    {% if reminders %}
+    <div style="margin-top:14px;">
+      {% for r in reminders %}
+      <div style="display:flex;align-items:center;gap:10px;background:#0d0f14;border-radius:8px;padding:8px 12px;margin-bottom:6px;font-size:13px;">
+        <span>{% if r.type == 'plan_renewal' %}⏰{% else %}📋{% endif %}</span>
+        <span style="color:#e2e8f0;">{{ r.type.replace('_',' ').title() }}</span>
+        <span style="color:#6b7280;">→ {{ r.due_date }}</span>
+        {% if r.sent %}<span style="color:#22c55e;">✅ Gesendet</span>{% else %}<span style="color:#f59e0b;">Ausstehend</span>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
   <!-- Notes -->
   {% if notes %}
   <div class="pm-card" style="margin-bottom:24px;">
@@ -273,6 +296,21 @@ async function flagNote(noteId, flagged, btn) {
     btn.classList.remove('flagged');
     btn.textContent = '☆ Für KI';
     btn.setAttribute('onclick', `flagNote(${noteId}, true, this)`);
+  }
+}
+
+async function scheduleRenewal() {
+  const date = document.getElementById('renewal-date').value;
+  if (!date) { alert('Bitte ein Datum wählen.'); return; }
+  const r = await fetch(`/client/${clientId}/schedule-reminder`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({type: 'plan_renewal', due_date: date})
+  });
+  if (r.ok) {
+    const s = document.getElementById('renewal-status');
+    s.style.display = 'inline';
+    setTimeout(() => s.style.display = 'none', 3000);
   }
 }
 

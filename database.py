@@ -109,8 +109,15 @@ def init_db():
     """)
 
     # ── Kunden-Portal Tabellen ────────────────────────────────────────────────
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS client_tokens (
+    conn.execute("""CREATE TABLE IF NOT EXISTS referrals (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        referrer_client_id INTEGER NOT NULL,
+        referred_email TEXT NOT NULL,
+        referred_name TEXT DEFAULT '',
+        status TEXT DEFAULT 'pending',
+        created_at TEXT DEFAULT (datetime('now'))
+    )""")
+    conn.execute("""CREATE TABLE IF NOT EXISTS client_tokens (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
             client_id   INTEGER NOT NULL UNIQUE,
             token       TEXT NOT NULL UNIQUE,
@@ -1292,3 +1299,40 @@ def get_ratings(client_id: int = None) -> list:
         """).fetchall()
     conn.close()
     return [dict(r) for r in rows]
+
+
+# ── Referral System ───────────────────────────────────────────────────────────
+
+def create_referral(referrer_client_id: int, referred_email: str, referred_name: str = "") -> int:
+    with get_db() as conn:
+        cur = conn.execute(
+            "INSERT INTO referrals (referrer_client_id, referred_email, referred_name) VALUES (?,?,?)",
+            (referrer_client_id, referred_email, referred_name)
+        )
+        return cur.lastrowid
+
+
+def get_referrals_for_client(client_id: int) -> list:
+    with get_db() as conn:
+        rows = conn.execute(
+            "SELECT * FROM referrals WHERE referrer_client_id=? ORDER BY created_at DESC",
+            (client_id,)
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def update_referral_status(referral_id: int, status: str):
+    with get_db() as conn:
+        conn.execute("UPDATE referrals SET status=? WHERE id=?", (status, referral_id))
+
+
+def get_referral_count(client_id: int) -> dict:
+    with get_db() as conn:
+        total = conn.execute(
+            "SELECT COUNT(*) FROM referrals WHERE referrer_client_id=?", (client_id,)
+        ).fetchone()[0]
+        converted = conn.execute(
+            "SELECT COUNT(*) FROM referrals WHERE referrer_client_id=? AND status='converted'",
+            (client_id,)
+        ).fetchone()[0]
+        return {"total": total, "converted": converted}
