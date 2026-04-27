@@ -151,6 +151,7 @@ GOAL_LABELS = {
 }
 
 PILLAR_LABELS = {
+    "supplements": {"de": "Supplementation", "en": "Supplementation"},
     "training":  {"de": "Training",          "en": "Training"},
     "nutrition": {"de": "Ernährung",         "en": "Nutrition"},
     "stress":    {"de": "Stressmanagement",  "en": "Stress Management"},
@@ -342,8 +343,32 @@ Erstelle das JSON-Objekt mit folgender Struktur (NUR die gewählten Säulen einb
         {{"time": "19:00", "name": "Abendessen", "description": "Leichtes Abendessen, weniger Kalorien als Trainingstag", "calories": 450, "protein_g": 45, "carbs_g": 40, "fat_g": 8}}
       ]
     }},
-    "supplements": ["Supplement 1 – Dosierung & Timing", "Supplement 2 – Dosierung & Timing"],
     "tips": ["Ernährungstipp 1 (spezifisch für {nst_name})", "Tipp 2", "Tipp 3"]
+  }},
+  
+  "supplements": {{
+    "overview": "Kurze Einleitung zur Supplementation für den {nst_name}-Typ (1-2 Sätze, warum diese Supplements)",
+    "stack": [
+      {{
+        "name": "Supplement-Name (z.B. Kreatin Monohydrat)",
+        "dose": "5g",
+        "timing": "Post-Workout oder morgens",
+        "reason": "Warum dieses Supplement für den {nst_name}-Typ sinnvoll ist (1-2 Sätze)",
+        "priority": "hoch"
+      }},
+      {{
+        "name": "Supplement-Name 2",
+        "dose": "Dosierung",
+        "timing": "Timing",
+        "reason": "Begründung",
+        "priority": "mittel"
+      }}
+    ],
+    "morning_stack": ["Supplement + Dosierung + Timing"],
+    "pre_workout_stack": ["Supplement + Dosierung + Timing"],
+    "post_workout_stack": ["Supplement + Dosierung + Timing"],
+    "evening_stack": ["Supplement + Dosierung + Timing"],
+    "tips": ["Supplement-Tipp 1 (NST-spezifisch, z.B. kein Koffein nach 14 Uhr für Löwen)", "Tipp 2"]
   }},
   
   "stress": {{
@@ -369,7 +394,6 @@ Erstelle das JSON-Objekt mit folgender Struktur (NUR die gewählten Säulen einb
       {{"time": "22:00", "action": "Konkrete Maßnahme", "description": "Details"}}
     ],
     "environment": ["Schlafumgebungs-Optimierung 1", "Optimierung 2", "Optimierung 3"],
-    "supplements": ["Schlaf-Supplement 1 – Dosierung & Timing (z.B. Magnesium Glycinat 400mg, 30 min vor dem Schlafen)"],
     "tips": ["Schlaf-Tipp 1 (NST-spezifisch)", "Tipp 2"]
   }}
 }}
@@ -381,7 +405,8 @@ WICHTIG:
 4. Das Trainingskonzept (training_concept) MUSS vor den Wochen kommen.
 5. Nutrition: Berechne die Makros für Trainings- und Ruhetage nach dem Carb-Cycling-Prinzip.
 6. Verwende konkrete Lebensmittel mit Mengenangaben in den Mahlzeiten.
-7. Passe ALLES an den {nst_name}-Typ an (Übungsauswahl, Tempo, Pausen, Ernährung, Stress, Schlaf)."""
+7. Passe ALLES an den {nst_name}-Typ an (Übungsauswahl, Tempo, Pausen, Ernährung, Stress, Schlaf).
+8. Supplements: Erstelle einen vollständigen, NST-spezifischen Stack mit Morgen/Pre/Post/Abend-Timing. Nur evidenzbasierte Supplements."""
 
     else:
         # English prompt
@@ -482,8 +507,32 @@ Create the JSON object with the following structure (include ONLY selected pilla
         {{"time": "19:00", "name": "Dinner", "description": "Light dinner, fewer calories than training day", "calories": 450, "protein_g": 45, "carbs_g": 40, "fat_g": 8}}
       ]
     }},
-    "supplements": ["Supplement 1 – Dosage & Timing", "Supplement 2 – Dosage & Timing"],
     "tips": ["Nutrition tip 1 (specific for {nst_name})", "Tip 2", "Tip 3"]
+  }},
+  
+  "supplements": {{
+    "overview": "Brief intro to supplementation for the {nst_name} type (1-2 sentences, why these supplements)",
+    "stack": [
+      {{
+        "name": "Supplement name (e.g. Creatine Monohydrate)",
+        "dose": "5g",
+        "timing": "Post-workout or morning",
+        "reason": "Why this supplement is beneficial for the {nst_name} type (1-2 sentences)",
+        "priority": "high"
+      }},
+      {{
+        "name": "Supplement name 2",
+        "dose": "Dosage",
+        "timing": "Timing",
+        "reason": "Reason",
+        "priority": "medium"
+      }}
+    ],
+    "morning_stack": ["Supplement + dose + timing"],
+    "pre_workout_stack": ["Supplement + dose + timing"],
+    "post_workout_stack": ["Supplement + dose + timing"],
+    "evening_stack": ["Supplement + dose + timing"],
+    "tips": ["Supplement tip 1 (NST-specific, e.g. no caffeine after 2pm for Lions)", "Tip 2"]
   }},
   
   "stress": {{
@@ -509,7 +558,6 @@ Create the JSON object with the following structure (include ONLY selected pilla
       {{"time": "22:00", "action": "Specific action", "description": "Details"}}
     ],
     "environment": ["Sleep environment optimisation 1", "Optimisation 2", "Optimisation 3"],
-    "supplements": ["Sleep supplement 1 – Dosage & Timing (e.g. Magnesium Glycinate 400mg, 30 min before sleep)"],
     "tips": ["Sleep tip 1 (NST-specific)", "Tip 2"]
   }}
 }}
@@ -521,7 +569,8 @@ IMPORTANT:
 4. The training concept (training_concept) MUST come before the weeks.
 5. Nutrition: Calculate macros for training and rest days using the carb cycling principle.
 6. Use specific foods with quantities in the meals.
-7. Adapt EVERYTHING to the {nst_name} type (exercise selection, tempo, rest, nutrition, stress, sleep)."""
+7. Adapt EVERYTHING to the {nst_name} type (exercise selection, tempo, rest, nutrition, stress, sleep).
+8. Supplements: Provide a complete, NST-specific stack with morning/pre/post/evening timing. Include only evidence-based supplements."""
 
     return prompt
 

@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mein Dashboard – NHM</title>
+<link rel="stylesheet" href="/static/css/style.css">
+<style>
+  :root { --accent: #00c8ff; --bg: #0d0f14; --card: #161a22; --border: #2a2f3d; --text: #e2e8f0; --muted: #6b7280; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Inter', -apple-system, sans-serif; min-height: 100vh; }
+
+  /* Nav */
+  .p-nav { background: #111318; border-bottom: 1px solid var(--border); padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 60px; position: sticky; top: 0; z-index: 100; }
+  .p-nav-brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; color: var(--accent); }
+  .p-nav-links { display: flex; gap: 4px; }
+  .p-nav-link { display: flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 8px; color: var(--muted); text-decoration: none; font-size: 14px; transition: all 0.2s; position: relative; }
+  .p-nav-link:hover, .p-nav-link.active { background: rgba(0,200,255,0.1); color: var(--accent); }
+  .badge { background: #ef4444; color: #fff; border-radius: 10px; font-size: 11px; padding: 2px 6px; position: absolute; top: 4px; right: 4px; }
+
+  /* Layout */
+  .p-main { max-width: 1000px; margin: 0 auto; padding: 32px 24px; }
+
+  /* Welcome */
+  .welcome-card { background: linear-gradient(135deg, #0a1628, #0d1f3c); border: 1px solid #1e3a5f; border-radius: 16px; padding: 32px; margin-bottom: 28px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+  .welcome-text h1 { font-size: 26px; font-weight: 700; margin-bottom: 6px; }
+  .welcome-text p { color: var(--muted); font-size: 15px; }
+  .welcome-avatar { width: 64px; height: 64px; background: linear-gradient(135deg, var(--accent), #0070f3); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 28px; flex-shrink: 0; }
+
+  /* Plan Status */
+  .plan-status-bar { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; margin-bottom: 28px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+  .plan-status-info h3 { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+  .plan-status-info p { color: var(--muted); font-size: 13px; }
+  .plan-btn { background: linear-gradient(135deg, var(--accent), #0070f3); color: #fff; border: none; border-radius: 8px; padding: 10px 20px; font-size: 14px; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block; }
+  .plan-btn:hover { opacity: 0.9; }
+  .no-plan-hint { color: var(--muted); font-size: 14px; font-style: italic; }
+
+  /* Pillars Grid */
+  .section-title { font-size: 16px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; }
+  .pillars-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; margin-bottom: 28px; }
+  .pillar-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; text-align: center; text-decoration: none; color: var(--text); transition: all 0.2s; position: relative; }
+  .pillar-card.unlocked:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,200,255,0.1); }
+  .pillar-card.locked { opacity: 0.4; cursor: not-allowed; }
+  .pillar-icon { font-size: 32px; margin-bottom: 8px; }
+  .pillar-name { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+  .pillar-status { font-size: 12px; color: var(--muted); }
+  .pillar-card.unlocked .pillar-status { color: #22c55e; }
+  .lock-overlay { position: absolute; top: 8px; right: 8px; font-size: 14px; }
+
+  /* Bottom Grid */
+  .bottom-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 640px) { .bottom-grid { grid-template-columns: 1fr; } .welcome-card { flex-direction: column; } }
+
+  /* Cards */
+  .info-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+  .info-card h3 { font-size: 15px; font-weight: 600; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+  .note-preview { border-left: 3px solid var(--accent); padding: 8px 12px; margin-bottom: 8px; font-size: 13px; color: var(--muted); }
+  .note-preview strong { color: var(--text); display: block; margin-bottom: 2px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .note-preview p { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .chat-preview-msg { padding: 8px 12px; border-radius: 8px; font-size: 13px; margin-bottom: 6px; max-width: 90%; }
+  .chat-preview-msg.coach { background: rgba(0,200,255,0.1); border: 1px solid rgba(0,200,255,0.2); }
+  .chat-preview-msg.client { background: #1e2330; margin-left: auto; }
+  .chat-sender { font-size: 11px; color: var(--muted); margin-bottom: 2px; }
+  .card-link { display: block; text-align: center; margin-top: 12px; color: var(--accent); font-size: 13px; text-decoration: none; }
+  .card-link:hover { text-decoration: underline; }
+  .empty-hint { color: var(--muted); font-size: 13px; text-align: center; padding: 16px 0; }
+
+  /* Quick Note Form */
+  .quick-note { display: flex; gap: 8px; margin-top: 12px; }
+  .quick-note select, .quick-note input { background: #0d0f14; border: 1px solid var(--border); border-radius: 6px; color: var(--text); padding: 8px 10px; font-size: 13px; }
+  .quick-note input { flex: 1; }
+  .quick-note button { background: var(--accent); color: #000; border: none; border-radius: 6px; padding: 8px 14px; font-size: 13px; font-weight: 600; cursor: pointer; }
+</style>
+</head>
+<body>
+
+<nav class="p-nav">
+  <div class="p-nav-brand">🧠 NHM Portal</div>
+  <div class="p-nav-links">
+    <a href="/portal/dashboard" class="p-nav-link active">🏠 Home</a>
+    {% if plan %}
+    <a href="/portal/plan" class="p-nav-link">📋 Mein Plan</a>
+    {% endif %}
+    <a href="/portal/notes" class="p-nav-link">📝 Notizen</a>
+    <a href="/portal/chat" class="p-nav-link">
+      💬 Chat
+      {% if unread_count > 0 %}<span class="badge">{{ unread_count }}</span>{% endif %}
+    </a>
+    <a href="/portal/logout" class="p-nav-link">🚪</a>
+  </div>
+</nav>
+
+<main class="p-main">
+
+  <!-- Welcome -->
+  <div class="welcome-card">
+    <div class="welcome-text">
+      <h1>Willkommen, {{ client.name.split()[0] }}! 👋</h1>
+      <p>Dein persönliches NHM Coaching-Portal. Hier findest du alles, was du für deinen Erfolg brauchst.</p>
+    </div>
+    <div class="welcome-avatar">{{ client.name[0].upper() }}</div>
+  </div>
+
+  <!-- Plan Status -->
+  {% if plan %}
+  <div class="plan-status-bar">
+    <div class="plan-status-info">
+      <h3>📋 Dein aktueller Plan ist bereit</h3>
+      <p>Version {{ plan.version }} · Erstellt am {{ plan.created_at[:10] }}</p>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center;">
+      <a href="/portal/plan/pdf" class="plan-btn" style="background:#1e2330;color:var(--text);border:1px solid var(--border);">⬇️ PDF</a>
+      <a href="/portal/plan" class="plan-btn">Plan ansehen →</a>
+    </div>
+  </div>
+  {% else %}
+  <div class="plan-status-bar">
+    <div class="plan-status-info">
+      <h3>⏳ Dein Plan wird vorbereitet</h3>
+      <p class="no-plan-hint">Dein Coach arbeitet gerade an deinem personalisierten Plan.</p>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Pillars -->
+  <div class="section-title">Deine Säulen</div>
+  <div class="pillars-grid">
+    {% set pillar_info = {
+      'training': {'icon': '💪', 'name': 'Training'},
+      'nutrition': {'icon': '🥗', 'name': 'Ernährung'},
+      'supplements': {'icon': '💊', 'name': 'Supplements'},
+      'stress': {'icon': '🧘', 'name': 'Stress'},
+      'sleep': {'icon': '😴', 'name': 'Schlaf'}
+    } %}
+    {% for key, info in pillar_info.items() %}
+      {% set is_unlocked = key in released_pillars %}
+      {% if plan %}
+        {% if is_unlocked %}
+        <a href="/portal/plan#section-{{ key }}" class="pillar-card unlocked">
+          <div class="pillar-icon">{{ info.icon }}</div>
+          <div class="pillar-name">{{ info.name }}</div>
+          <div class="pillar-status">✅ Freigeschaltet</div>
+        </a>
+        {% else %}
+        <div class="pillar-card locked">
+          <div class="lock-overlay">🔒</div>
+          <div class="pillar-icon">{{ info.icon }}</div>
+          <div class="pillar-name">{{ info.name }}</div>
+          <div class="pillar-status">Noch gesperrt</div>
+        </div>
+        {% endif %}
+      {% endif %}
+    {% endfor %}
+  </div>
+
+  <!-- Bottom Grid: Notes + Chat -->
+  <div class="bottom-grid">
+
+    <!-- Notes -->
+    <div class="info-card">
+      <h3>📝 Meine Notizen</h3>
+      {% if notes %}
+        {% for note in notes %}
+        <div class="note-preview">
+          <strong>{{ note.category }} · {{ note.created_at[:10] }}</strong>
+          <p>{{ note.text }}</p>
+        </div>
+        {% endfor %}
+        <a href="/portal/notes" class="card-link">Alle Notizen ansehen →</a>
+      {% else %}
+        <p class="empty-hint">Noch keine Notizen. Schreib deine ersten Gedanken!</p>
+      {% endif %}
+
+      <!-- Quick Note -->
+      <div class="quick-note">
+        <select id="note-cat">
+          <option value="training">Training</option>
+          <option value="ernährung">Ernährung</option>
+          <option value="schlaf">Schlaf</option>
+          <option value="stress">Stress</option>
+          <option value="allgemein">Allgemein</option>
+        </select>
+        <input type="text" id="note-text" placeholder="Schnelle Notiz…">
+        <button onclick="addNote()">+</button>
+      </div>
+    </div>
+
+    <!-- Chat -->
+    <div class="info-card">
+      <h3>💬 Chat mit Coach René</h3>
+      {% if messages %}
+        {% for msg in messages[-3:] %}
+        <div class="chat-preview-msg {{ msg.sender }}">
+          <div class="chat-sender">{{ 'Coach René' if msg.sender == 'coach' else 'Du' }}</div>
+          {{ msg.text[:80] }}{% if msg.text|length > 80 %}…{% endif %}
+        </div>
+        {% endfor %}
+        <a href="/portal/chat" class="card-link">Chat öffnen →</a>
+      {% else %}
+        <p class="empty-hint">Noch keine Nachrichten. Schreib deinem Coach!</p>
+        <a href="/portal/chat" class="card-link" style="margin-top:8px">Nachricht senden →</a>
+      {% endif %}
+    </div>
+
+  </div>
+
+</main>
+
+<script>
+async function addNote() {
+  const cat = document.getElementById('note-cat').value;
+  const text = document.getElementById('note-text').value.trim();
+  if (!text) return;
+  const r = await fetch('/portal/note', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({category: cat, text})
+  });
+  if (r.ok) {
+    document.getElementById('note-text').value = '';
+    location.reload();
+  }
+}
+document.getElementById('note-text').addEventListener('keydown', e => {
+  if (e.key === 'Enter') addNote();
+});
+</script>
+</body>
+</html>

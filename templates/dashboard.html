@@ -62,6 +62,10 @@
       {% if c.plan_id %}
       <a href="/plan/{{ c.plan_id }}" class="btn-accent btn-sm">Plan ansehen</a>
       {% endif %}
+      <a href="/client/{{ c.id }}/portal" class="btn-secondary btn-sm" style="color:#00c8ff;border-color:#00c8ff;position:relative;" title="Kunden-Portal">
+        🔗 Portal
+        <span class="unread-dot" id="unread-{{ c.id }}" style="display:none;position:absolute;top:-4px;right:-4px;width:10px;height:10px;background:#ef4444;border-radius:50%;"></span>
+      </a>
     </div>
   </div>
   {% endfor %}
@@ -75,4 +79,23 @@
   <a href="/client/new" class="btn-primary">Ersten Kunden anlegen</a>
 </div>
 {% endif %}
+
+{% block scripts %}
+<script>
+// Unread message dots
+async function loadUnreadCounts() {
+  try {
+    const r = await fetch('/api/unread-counts');
+    const data = await r.json();
+    for (const [clientId, count] of Object.entries(data)) {
+      if (count > 0) {
+        const dot = document.getElementById('unread-' + clientId);
+        if (dot) dot.style.display = 'block';
+      }
+    }
+  } catch(e) {}
+}
+loadUnreadCounts();
+</script>
+{% endblock %}
 {% endblock %}

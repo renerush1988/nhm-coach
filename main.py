@@ -23,7 +23,13 @@ from database import (
     mark_plan_sent, get_next_version, save_feedback, get_feedback,
     create_chat, get_chat, list_chats, update_chat_title, touch_chat, delete_chat,
     add_message, get_messages, save_knowledge_doc, list_knowledge_docs,
-    delete_knowledge_doc, get_all_knowledge_text, get_knowledge_base, save_knowledge_base
+    delete_knowledge_doc, get_all_knowledge_text, get_knowledge_base, save_knowledge_base,
+    # Portal
+    get_or_create_client_token, get_client_by_token, regenerate_client_token,
+    add_client_note, get_client_notes, flag_client_note, delete_client_note,
+    save_exercise_weight, get_exercise_weights,
+    add_client_message, get_client_messages, mark_messages_read, get_unread_count,
+    get_released_pillars, set_released_pillars
 )
 from ai_generator import generate_plan
 from pdf_generator import generate_pdf
@@ -655,3 +661,321 @@ async def assistant_save_knowledge(request: Request):
     content = data.get("content", "")
     save_knowledge_base(content)
     return JSONResponse({"success": True})
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# KUNDEN-PORTAL
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def get_portal_client(request: Request):
+    """Returns client dict if portal cookie is valid, else None."""
+    token = request.cookies.get("nhm_portal_token")
+    if not token:
+        return None
+    return get_client_by_token(token)
+
+
+def require_portal_auth(request: Request):
+    client = get_portal_client(request)
+    if not client:
+        raise HTTPException(status_code=302, headers={"Location": "/portal/login"})
+    return client
+
+
+# ── Portal Login ──────────────────────────────────────────────────────────────
+
+@app.get("/portal/login", response_class=HTMLResponse)
+async def portal_login_page(request: Request, error: str = ""):
+    return templates.TemplateResponse("portal_login.html", {"request": request, "error": error})
+
+
+@app.post("/portal/login")
+async def portal_login_submit(request: Request, token: str = Form(...)):
+    client = get_client_by_token(token.strip())
+    if not client:
+        return RedirectResponse("/portal/login?error=1", status_code=302)
+    response = RedirectResponse("/portal/dashboard", status_code=302)
+    response.set_cookie("nhm_portal_token", token.strip(), max_age=86400 * 30, httponly=True, samesite="lax")
+    return response
+
+
+@app.get("/portal/logout")
+async def portal_logout():
+    response = RedirectResponse("/portal/login", status_code=302)
+    response.delete_cookie("nhm_portal_token")
+    return response
+
+
+# Magic link: /portal/access/{token}
+@app.get("/portal/access/{token}", response_class=HTMLResponse)
+async def portal_magic_link(request: Request, token: str):
+    client = get_client_by_token(token)
+    if not client:
+        return RedirectResponse("/portal/login?error=1", status_code=302)
+    response = RedirectResponse("/portal/dashboard", status_code=302)
+    response.set_cookie("nhm_portal_token", token, max_age=86400 * 30, httponly=True, samesite="lax")
+    return response
+
+
+# ── Portal Dashboard ──────────────────────────────────────────────────────────
+
+@app.get("/portal/dashboard", response_class=HTMLResponse)
+async def portal_dashboard(request: Request):
+    client = get_portal_client(request)
+    if not client:
+        return RedirectResponse("/portal/login", status_code=302)
+    plan = get_latest_plan(client["id"])
+    released = get_released_pillars(client["id"])
+    unread = get_unread_count(client["id"])
+    notes = get_client_notes(client["id"])
+    return templates.TemplateResponse("portal_dashboard.html", {
+        "request": request,
+        "client": client,
+        "plan": plan,
+        "released_pillars": released,
+        "unread_count": unread,
+        "notes": notes[:5],  # last 5 notes preview
+    })
+
+
+# ── Portal Plan View ──────────────────────────────────────────────────────────
+
+@app.get("/portal/plan", response_class=HTMLResponse)
+async def portal_plan(request: Request):
+    client = get_portal_client(request)
+    if not client:
+        return RedirectResponse("/portal/login", status_code=302)
+    plan = get_latest_plan(client["id"])
+    if not plan:
+        return RedirectResponse("/portal/dashboard", status_code=302)
+    released = get_released_pillars(client["id"])
+    weights = get_exercise_weights(client["id"], plan["id"])
+    # Build weight lookup: key = "week_day_exercise"
+    weight_map = {}
+    for w in weights:
+        key = f"{w['week']}_{w['day']}_{w['exercise']}"
+        weight_map[key] = {"weight": w["weight"], "unit": w["unit"], "reps_done": w.get("reps_done")}
+    return templates.TemplateResponse("portal_plan.html", {
+        "request": request,
+        "client": client,
+        "plan": plan,
+        "released_pillars": released,
+        "weight_map": weight_map,
+    })
+
+
+# ── Portal: Save Exercise Weight ──────────────────────────────────────────────
+
+@app.post("/portal/weight")
+async def portal_save_weight(request: Request):
+    client = get_portal_client(request)
+    if not client:
+        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+    data = await request.json()
+    plan = get_latest_plan(client["id"])
+    if not plan:
+        return JSONResponse({"error": "No plan"}, status_code=404)
+    save_exercise_weight(
+        client_id=client["id"],
+        plan_id=plan["id"],
+        week=data.get("week", 1),
+        day=data.get("day", ""),
+        exercise=data.get("exercise", ""),
+        weight=data.get("weight"),
+        unit=data.get("unit", "kg"),
+        reps_done=data.get("reps_done")
+    )
+    return JSONResponse({"success": True})
+
+
+# ── Portal: Notes ─────────────────────────────────────────────────────────────
+
+@app.post("/portal/note")
+async def portal_add_note(request: Request):
+    client = get_portal_client(request)
+    if not client:
+        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+    data = await request.json()
+    note_id = add_client_note(client["id"], data.get("text", ""), data.get("category", "allgemein"))
+    return JSONResponse({"success": True, "note_id": note_id})
+
+
+@app.get("/portal/notes", response_class=HTMLResponse)
+async def portal_notes_page(request: Request):
+    client = get_portal_client(request)
+    if not client:
+        return RedirectResponse("/portal/login", status_code=302)
+    notes = get_client_notes(client["id"])
+    return templates.TemplateResponse("portal_notes.html", {
+        "request": request,
+        "client": client,
+        "notes": notes,
+    })
+
+
+# ── Portal: Chat ──────────────────────────────────────────────────────────────
+
+@app.get("/portal/chat", response_class=HTMLResponse)
+async def portal_chat_page(request: Request):
+    client = get_portal_client(request)
+    if not client:
+        return RedirectResponse("/portal/login", status_code=302)
+    messages = get_client_messages(client["id"])
+    return templates.TemplateResponse("portal_chat.html", {
+        "request": request,
+        "client": client,
+        "messages": messages,
+    })
+
+
+@app.post("/portal/chat/send")
+async def portal_chat_send(request: Request):
+    client = get_portal_client(request)
+    if not client:
+        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+    form = await request.form()
+    text = form.get("text", "").strip()
+    file_path = None
+    if "file" in form:
+        upload = form["file"]
+        if upload.filename:
+            import uuid, aiofiles
+            ext = upload.filename.rsplit(".", 1)[-1] if "." in upload.filename else "bin"
+            fname = f"chat_{client['id']}_{uuid.uuid4().hex[:8]}.{ext}"
+            fpath = f"static/uploads/{fname}"
+            os.makedirs("static/uploads", exist_ok=True)
+            content = await upload.read()
+            with open(fpath, "wb") as f:
+                f.write(content)
+            file_path = f"/static/uploads/{fname}"
+    if text or file_path:
+        add_client_message(client["id"], text or "(Datei)", "client", file_path)
+    return JSONResponse({"success": True})
+
+
+@app.post("/portal/chat/send-json")
+async def portal_chat_send_json(request: Request):
+    client = get_portal_client(request)
+    if not client:
+        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+    data = await request.json()
+    text = data.get("text", "").strip()
+    if text:
+        add_client_message(client["id"], text, "client")
+    return JSONResponse({"success": True})
+
+
+# ── Portal PDF Download ───────────────────────────────────────────────────────
+
+@app.get("/portal/plan/pdf")
+async def portal_plan_pdf(request: Request):
+    client = get_portal_client(request)
+    if not client:
+        return RedirectResponse("/portal/login", status_code=302)
+    plan = get_latest_plan(client["id"])
+    if not plan:
+        raise HTTPException(status_code=404, detail="Kein Plan gefunden")
+    released = get_released_pillars(client["id"])
+    client_for_pdf = dict(client)
+    if released:
+        client_for_pdf["pillars"] = released
+    pdf_bytes = generate_pdf(plan["content"], client_for_pdf)
+    filename = f"NHM_Plan_{client['name'].replace(' ', '_')}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# COMMANDER: Kunden-Portal verwalten
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@app.get("/client/{client_id}/portal", response_class=HTMLResponse)
+async def client_portal_manage(request: Request, client_id: int):
+    if not is_authenticated(request):
+        return RedirectResponse("/login", status_code=302)
+    client = get_client(client_id)
+    if not client:
+        raise HTTPException(status_code=404)
+    token_data = get_or_create_client_token(client_id)
+    released = get_released_pillars(client_id)
+    messages = get_client_messages(client_id, limit=50)
+    notes = get_client_notes(client_id)
+    unread = get_unread_count(client_id)
+    mark_messages_read(client_id)
+    plan = get_latest_plan(client_id)
+    base_url = str(request.base_url).rstrip("/")
+    portal_link = f"{base_url}/portal/access/{token_data['token']}"
+    return templates.TemplateResponse("client_portal_manage.html", {
+        "request": request,
+        "client": client,
+        "token": token_data["token"],
+        "portal_link": portal_link,
+        "released_pillars": released,
+        "messages": messages,
+        "notes": notes,
+        "unread_count": unread,
+        "plan": plan,
+    })
+
+
+@app.post("/client/{client_id}/portal/release-pillars")
+async def release_pillars(request: Request, client_id: int):
+    if not is_authenticated(request):
+        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+    data = await request.json()
+    pillars = data.get("pillars", [])
+    set_released_pillars(client_id, pillars)
+    return JSONResponse({"success": True, "pillars": pillars})
+
+
+@app.post("/client/{client_id}/portal/regenerate-token")
+async def regenerate_token(request: Request, client_id: int):
+    if not is_authenticated(request):
+        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+    token = regenerate_client_token(client_id)
+    base_url = str(request.base_url).rstrip("/")
+    portal_link = f"{base_url}/portal/access/{token}"
+    return JSONResponse({"success": True, "token": token, "portal_link": portal_link})
+
+
+@app.post("/client/{client_id}/portal/reply")
+async def coach_reply(request: Request, client_id: int):
+    if not is_authenticated(request):
+        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+    data = await request.json()
+    text = data.get("text", "").strip()
+    if text:
+        add_client_message(client_id, text, "coach")
+    return JSONResponse({"success": True})
+
+
+@app.post("/client/{client_id}/note/flag")
+async def flag_note(request: Request, client_id: int):
+    if not is_authenticated(request):
+        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+    data = await request.json()
+    flag_client_note(data.get("note_id"), data.get("flagged", True))
+    return JSONResponse({"success": True})
+
+
+@app.post("/client/{client_id}/note/delete")
+async def delete_note(request: Request, client_id: int):
+    if not is_authenticated(request):
+        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+    data = await request.json()
+    delete_client_note(data.get("note_id"))
+    return JSONResponse({"success": True})
+
+
+# ── Commander Dashboard: Unread counts ───────────────────────────────────────
+
+@app.get("/api/unread-counts")
+async def get_all_unread_counts(request: Request):
+    if not is_authenticated(request):
+        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+    clients = list_clients()
+    counts = {str(c["id"]): get_unread_count(c["id"]) for c in clients}
+    return JSONResponse(counts)

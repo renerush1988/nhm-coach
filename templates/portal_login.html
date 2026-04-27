@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NHM Client Portal – Login</title>
+<link rel="stylesheet" href="/static/css/style.css">
+<style>
+  body { background: #0d0f14; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+  .portal-login-card {
+    background: #161a22;
+    border: 1px solid #2a2f3d;
+    border-radius: 16px;
+    padding: 48px 40px;
+    width: 100%;
+    max-width: 420px;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  }
+  .portal-logo { font-size: 48px; margin-bottom: 8px; }
+  .portal-brand { font-size: 22px; font-weight: 700; color: #00c8ff; margin-bottom: 4px; }
+  .portal-sub { color: #6b7280; font-size: 14px; margin-bottom: 32px; }
+  .portal-input {
+    width: 100%;
+    background: #0d0f14;
+    border: 1px solid #2a2f3d;
+    border-radius: 8px;
+    color: #e2e8f0;
+    padding: 14px 16px;
+    font-size: 15px;
+    margin-bottom: 16px;
+    box-sizing: border-box;
+    text-align: center;
+    letter-spacing: 2px;
+  }
+  .portal-input:focus { outline: none; border-color: #00c8ff; }
+  .portal-btn {
+    width: 100%;
+    background: linear-gradient(135deg, #00c8ff, #0070f3);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 14px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  .portal-btn:hover { opacity: 0.9; }
+  .portal-error {
+    background: rgba(239,68,68,0.15);
+    border: 1px solid rgba(239,68,68,0.4);
+    border-radius: 8px;
+    color: #f87171;
+    padding: 12px;
+    margin-bottom: 16px;
+    font-size: 14px;
+  }
+  .portal-hint { color: #4b5563; font-size: 13px; margin-top: 20px; }
+</style>
+</head>
+<body>
+<div class="portal-login-card">
+  <div class="portal-logo">🧠</div>
+  <div class="portal-brand">NeuroHealthMastery</div>
+  <div class="portal-sub">Client Portal</div>
+
+  {% if error %}
+  <div class="portal-error">Ungültiger Zugangscode. Bitte deinen Coach kontaktieren.</div>
+  {% endif %}
+
+  <form method="post" action="/portal/login">
+    <input
+      class="portal-input"
+      type="text"
+      name="token"
+      placeholder="Zugangscode eingeben"
+      autocomplete="off"
+      required
+    >
+    <button class="portal-btn" type="submit">Einloggen →</button>
+  </form>
+
+  <p class="portal-hint">Deinen persönlichen Zugangscode erhältst du von deinem Coach René Rusch.<br>Oder öffne einfach den Link aus deiner E-Mail.</p>
+</div>
+</body>
+</html>

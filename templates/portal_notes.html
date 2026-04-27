@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Notizen – NHM Portal</title>
+<link rel="stylesheet" href="/static/css/style.css">
+<style>
+  :root { --accent: #00c8ff; --bg: #0d0f14; --card: #161a22; --border: #2a2f3d; --text: #e2e8f0; --muted: #6b7280; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Inter', -apple-system, sans-serif; }
+  .p-nav { background: #111318; border-bottom: 1px solid var(--border); padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 60px; }
+  .p-nav-brand { font-weight: 700; font-size: 18px; color: var(--accent); }
+  .p-nav-links { display: flex; gap: 4px; }
+  .p-nav-link { display: flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 8px; color: var(--muted); text-decoration: none; font-size: 14px; }
+  .p-nav-link:hover, .p-nav-link.active { background: rgba(0,200,255,0.1); color: var(--accent); }
+  .p-main { max-width: 800px; margin: 0 auto; padding: 32px 24px; }
+  .page-title { font-size: 22px; font-weight: 700; margin-bottom: 24px; }
+
+  .note-form { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 28px; }
+  .note-form h3 { font-size: 15px; font-weight: 600; margin-bottom: 14px; }
+  .form-row { display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+  .form-row select, .form-row input { background: #0d0f14; border: 1px solid var(--border); border-radius: 8px; color: var(--text); padding: 10px 14px; font-size: 14px; }
+  .form-row select { min-width: 140px; }
+  .note-textarea { width: 100%; background: #0d0f14; border: 1px solid var(--border); border-radius: 8px; color: var(--text); padding: 12px 14px; font-size: 14px; resize: vertical; min-height: 80px; font-family: inherit; margin-bottom: 10px; }
+  .note-textarea:focus { outline: none; border-color: var(--accent); }
+  .submit-btn { background: linear-gradient(135deg, var(--accent), #0070f3); color: #fff; border: none; border-radius: 8px; padding: 10px 20px; font-size: 14px; font-weight: 600; cursor: pointer; }
+
+  .notes-list { display: flex; flex-direction: column; gap: 12px; }
+  .note-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; }
+  .note-card.flagged { border-color: rgba(245,158,11,0.4); background: rgba(245,158,11,0.05); }
+  .note-meta { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .note-cat { background: rgba(0,200,255,0.1); border: 1px solid rgba(0,200,255,0.3); border-radius: 20px; padding: 2px 10px; font-size: 12px; color: var(--accent); }
+  .note-date { font-size: 12px; color: var(--muted); }
+  .note-flag { font-size: 14px; margin-left: auto; }
+  .note-text { font-size: 14px; line-height: 1.6; }
+  .empty-hint { color: var(--muted); text-align: center; padding: 40px; font-size: 14px; }
+</style>
+</head>
+<body>
+<nav class="p-nav">
+  <div class="p-nav-brand">🧠 NHM Portal</div>
+  <div class="p-nav-links">
+    <a href="/portal/dashboard" class="p-nav-link">🏠 Home</a>
+    <a href="/portal/plan" class="p-nav-link">📋 Plan</a>
+    <a href="/portal/notes" class="p-nav-link active">📝 Notizen</a>
+    <a href="/portal/chat" class="p-nav-link">💬 Chat</a>
+    <a href="/portal/logout" class="p-nav-link">🚪</a>
+  </div>
+</nav>
+
+<main class="p-main">
+  <div class="page-title">📝 Meine Notizen</div>
+
+  <div class="note-form">
+    <h3>Neue Notiz</h3>
+    <div class="form-row">
+      <select id="note-cat">
+        <option value="training">💪 Training</option>
+        <option value="ernährung">🥗 Ernährung</option>
+        <option value="schlaf">😴 Schlaf</option>
+        <option value="stress">🧘 Stress</option>
+        <option value="supplements">💊 Supplements</option>
+        <option value="allgemein">📌 Allgemein</option>
+        <option value="problem">⚠️ Problem</option>
+      </select>
+    </div>
+    <textarea class="note-textarea" id="note-text" placeholder="Was möchtest du festhalten? Probleme, Fortschritte, Fragen…"></textarea>
+    <button class="submit-btn" onclick="addNote()">Notiz speichern</button>
+  </div>
+
+  <div class="notes-list">
+    {% if notes %}
+      {% for note in notes %}
+      <div class="note-card {% if note.flagged %}flagged{% endif %}">
+        <div class="note-meta">
+          <span class="note-cat">{{ note.category }}</span>
+          <span class="note-date">{{ note.created_at[:10] }} · {{ note.created_at[11:16] }}</span>
+          {% if note.flagged %}<span class="note-flag">⭐ Wichtig</span>{% endif %}
+        </div>
+        <div class="note-text">{{ note.text }}</div>
+      </div>
+      {% endfor %}
+    {% else %}
+    <div class="empty-hint">Noch keine Notizen. Fang jetzt an!</div>
+    {% endif %}
+  </div>
+</main>
+
+<script>
+async function addNote() {
+  const cat = document.getElementById('note-cat').value;
+  const text = document.getElementById('note-text').value.trim();
+  if (!text) return;
+  const r = await fetch('/portal/note', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({category: cat, text})
+  });
+  if (r.ok) location.reload();
+}
+</script>
+</body>
+</html>
